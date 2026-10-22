@@ -1,0 +1,395 @@
+{% load static %}<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ title }} · 系统状态</title>
+{% comment %}
+  ★ 设计令牌**原样落地**自 11 文档 5.2 / 5.3 / 5.5。
+    文档原文：「色值、圆角、间距、阴影、字体、字号、行高、字重、
+    动效曲线一律不得改值、不得删减」。
+    这里只取了首页用到的那部分，未用的令牌不抄——避免两处维护。
+
+  ★★ Django 模板的注释有两个坑，都踩过了：
+
+    1. 单行注释语法**只支持单行**。写成多行时不被解析，
+       会**原样渲染到页面上**（我第一版就是这样，页面顶部
+       出现了注释原文）。
+    2. 多行注释必须用本标签。但在**本标签内部不能再写
+       单行注释的定界符**——那样它会一路吃到本标签的
+       结束标记，导致「Invalid block tag: endcomment」。
+{% endcomment %}
+<style>
+:root {
+  --zf-brand:            #4D6BFE;
+  --zf-brand-hover:      #3F5CE8;
+  --zf-brand-deep:       #3A65C2;
+  --zf-brand-subtle:     #EEF2FF;
+  --zf-brand-border:     #C7D2FE;
+  --zf-text-primary:     #1E232C;
+  --zf-text-secondary:   #5A6172;
+  --zf-text-tertiary:    #8A90A0;
+  --zf-text-inverse:     #FFFFFF;
+  --zf-bg-page:          #F7F8FA;
+  --zf-bg-surface:       #FFFFFF;
+  --zf-bg-subtle:        #FAFBFC;
+  --zf-bg-hover:         #F2F4F7;
+  --zf-border:           #E5E7EB;
+  --zf-border-strong:    #D1D5DB;
+  --zf-border-subtle:    #F0F1F3;
+  --zf-success:          #17A673;
+  --zf-success-bg:       #E8F6F1;
+  --zf-warning:          #E08700;
+  --zf-warning-bg:       #FDF3E2;
+  --zf-danger:           #D9453D;
+  --zf-danger-bg:        #FCEDEC;
+  --zf-info:             #4D6BFE;
+  --zf-info-bg:          #EEF2FF;
+  --zf-mastery-0:        #D9453D;
+  --zf-mastery-1:        #E8794A;
+  --zf-mastery-2:        #E0A030;
+  --zf-mastery-3:        #4D6BFE;
+  --zf-mastery-4:        #17A673;
+  --zf-mastery-na:       #E5E7EB;
+  --zf-radius-xs:   2px;
+  --zf-radius-sm:   4px;
+  --zf-radius-md:   6px;
+  --zf-radius-lg:   8px;
+  --zf-radius-xl:   12px;
+  --zf-radius-hero: 24px;
+  --zf-radius-pill: 100px;
+  --zf-space-1: 4px;
+  --zf-space-2: 8px;
+  --zf-space-3: 12px;
+  --zf-space-4: 16px;
+  --zf-space-5: 20px;
+  --zf-space-6: 24px;
+  --zf-space-8: 32px;
+  --zf-space-10: 40px;
+  --zf-space-12: 48px;
+  --zf-shadow-xs: 0 1px 2px rgba(16, 24, 40, 0.04);
+  --zf-shadow-sm: 0 1px 3px rgba(16, 24, 40, 0.06), 0 1px 2px rgba(16, 24, 40, 0.04);
+  --zf-shadow-md: 0 4px 12px rgba(16, 24, 40, 0.08);
+  --zf-shadow-glass: 0 8px 32px rgba(16, 24, 40, 0.06);
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--zf-bg-page);
+  color: var(--zf-text-primary);
+  font: 14px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI",
+        "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--zf-brand); text-decoration: none; }
+a:hover { color: var(--zf-brand-hover); text-decoration: underline; }
+code { font-family: "Cascadia Code", Consolas, "Courier New", monospace;
+       font-size: 12.5px; background: var(--zf-bg-subtle);
+       border: 1px solid var(--zf-border-subtle); border-radius: var(--zf-radius-xs);
+       padding: 1px 5px; }
+
+.wrap { max-width: 1080px; margin: 0 auto; padding: var(--zf-space-8) var(--zf-space-6) var(--zf-space-12); }
+
+/* ── Hero ── */
+.hero {
+  background: linear-gradient(135deg, var(--zf-brand) 0%, var(--zf-brand-deep) 100%);
+  border-radius: var(--zf-radius-hero);
+  padding: var(--zf-space-10) var(--zf-space-8);
+  color: var(--zf-text-inverse);
+  box-shadow: var(--zf-shadow-glass);
+}
+.hero h1 { margin: 0; font-size: 30px; letter-spacing: .02em; font-weight: 700; }
+.hero p  { margin: var(--zf-space-2) 0 0; color: rgba(255,255,255,.86); font-size: 14.5px; }
+.hero .meta { margin-top: var(--zf-space-6); display: flex; flex-wrap: wrap;
+              gap: var(--zf-space-2); }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 11px; border-radius: var(--zf-radius-pill);
+  font-size: 12.5px; background: rgba(255,255,255,.18);
+  border: 1px solid rgba(255,255,255,.24);
+}
+.dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex: none; }
+.dot.ok { background: #6EE7B7; } .dot.bad { background: #FCA5A5; } .dot.warn { background: #FCD34D; }
+
+/* ── 卡片 ── */
+.grid { display: grid; gap: var(--zf-space-4); margin-top: var(--zf-space-6); }
+.g2 { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+.card {
+  background: var(--zf-bg-surface);
+  border: 1px solid var(--zf-border);
+  border-radius: var(--zf-radius-lg);
+  box-shadow: var(--zf-shadow-sm);
+  overflow: hidden;
+}
+.card > header {
+  padding: var(--zf-space-4) var(--zf-space-5);
+  border-bottom: 1px solid var(--zf-border-subtle);
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--zf-space-3);
+}
+.card h2 { margin: 0; font-size: 15px; font-weight: 600; }
+.card .body { padding: var(--zf-space-4) var(--zf-space-5); }
+
+/* ── KV 行 ── */
+.kv { display: flex; justify-content: space-between; gap: var(--zf-space-4);
+      padding: 7px 0; border-bottom: 1px dashed var(--zf-border-subtle); }
+.kv:last-child { border-bottom: none; }
+.kv .k { color: var(--zf-text-secondary); flex: none; }
+.kv .v { text-align: right; word-break: break-all; font-variant-numeric: tabular-nums; }
+
+/* ── 徽章 ── */
+.badge { display: inline-flex; align-items: center; gap: 5px;
+         padding: 2px 9px; border-radius: var(--zf-radius-pill);
+         font-size: 12px; font-weight: 500; white-space: nowrap; }
+.badge.ok   { background: var(--zf-success-bg); color: var(--zf-success); }
+.badge.warn { background: var(--zf-warning-bg); color: var(--zf-warning); }
+.badge.bad  { background: var(--zf-danger-bg);  color: var(--zf-danger); }
+.badge.info { background: var(--zf-info-bg);    color: var(--zf-info); }
+.badge.na   { background: var(--zf-bg-hover);   color: var(--zf-text-tertiary); }
+
+/* ── 计数卡 ── */
+.counts { display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+          gap: var(--zf-space-2); }
+.count {
+  background: var(--zf-bg-subtle); border: 1px solid var(--zf-border-subtle);
+  border-radius: var(--zf-radius-md); padding: var(--zf-space-3);
+  text-align: center;
+}
+.count .n { font-size: 21px; font-weight: 700; font-variant-numeric: tabular-nums;
+            color: var(--zf-text-primary); line-height: 1.25; }
+.count .n.zero { color: var(--zf-text-tertiary); font-weight: 600; }
+.count .n.missing { color: var(--zf-danger); font-size: 13px; font-weight: 500; }
+.count .l { font-size: 12px; color: var(--zf-text-secondary); margin-top: 2px; }
+
+/* ── 题型条 ──
+   ★★ `.track` 与 `.fill` 是 `<span>`，必须显式 `display: block`。
+      行内元素**忽略 `width` 与 `height`**——我第一版漏了这行，
+      结果「轨道空白、填充根本没渲染」（品牌色像素数 = 0），
+      而 HTML 里的 `width: 100%` 看起来完全正确。
+      ★ 这类错误在 DOM 里查不出来，只能看渲染结果。 */
+.bar { display: flex; align-items: center; gap: var(--zf-space-3); padding: 5px 0; }
+.bar .lb { width: 108px; flex: none; font-size: 12.5px; color: var(--zf-text-secondary);
+           overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar .track { display: block; flex: 1; height: 8px; background: var(--zf-bg-hover);
+              border-radius: var(--zf-radius-pill); overflow: hidden; }
+.bar .fill { display: block; height: 100%; min-width: 2px;
+             background: var(--zf-brand);
+             border-radius: var(--zf-radius-pill); transition: width .2s ease; }
+.bar .num { width: 52px; flex: none; text-align: right; font-size: 12.5px;
+            font-variant-numeric: tabular-nums; color: var(--zf-text-secondary); }
+
+/* ── 模块链接 ── */
+.mods { display: flex; flex-wrap: wrap; gap: var(--zf-space-2); }
+.mod { display: inline-flex; align-items: baseline; gap: 6px;
+       padding: 6px 11px; border: 1px solid var(--zf-border);
+       border-radius: var(--zf-radius-sm); background: var(--zf-bg-surface);
+       font-size: 13px; transition: background .15s ease; }
+.mod:hover { background: var(--zf-bg-hover); text-decoration: none; }
+.mod .p { color: var(--zf-text-tertiary); font-size: 11.5px;
+          font-family: Consolas, monospace; }
+
+/* ── 提示条 ── */
+.note { display: flex; gap: var(--zf-space-3); align-items: flex-start;
+        padding: var(--zf-space-3) var(--zf-space-4);
+        border-radius: var(--zf-radius-md); font-size: 13px; margin-top: var(--zf-space-3); }
+.note.warn { background: var(--zf-warning-bg); color: #7A4A00; }
+.note.bad  { background: var(--zf-danger-bg);  color: #7A1F1A; }
+.note.info { background: var(--zf-info-bg);    color: #2A3A8F; }
+.note .t { flex: none; font-weight: 700; }
+
+footer { margin-top: var(--zf-space-10); color: var(--zf-text-tertiary);
+         font-size: 12.5px; text-align: center; }
+.links { display: flex; gap: var(--zf-space-4); justify-content: center;
+         margin-top: var(--zf-space-3); flex-wrap: wrap; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <section class="hero">
+    <h1>{{ title }}</h1>
+    <p>{{ subtitle }}</p>
+    <div class="meta">
+      <span class="chip"><i class="dot {% if db.ok %}ok{% else %}bad{% endif %}"></i>
+        数据库 {% if db.ok %}已连接{% else %}连接失败{% endif %}</span>
+      <span class="chip"><i class="dot {% if cache.ok %}ok{% else %}bad{% endif %}"></i>
+        缓存 {% if cache.ok %}可用{% else %}不可用{% endif %}</span>
+      <span class="chip"><i class="dot warn"></i>异步队列 未接线</span>
+      <span class="chip">v{{ version }}</span>
+      <span class="chip">{% if debug %}开发模式{% else %}生产模式{% endif %}</span>
+    </div>
+  </section>
+
+  {% if db.wrong_port_warning %}
+  <div class="note bad">
+    <span class="t">端口告警</span>
+    <div>当前连的是 <code>5432</code> —— 那是<strong>另一个项目</strong>
+      （<code>question-bank-pg</code>，无 pgvector）的库。
+      本项目的 PostgreSQL 应为 <code>15433</code>。
+      见 <code>deploy/use-postgres.cmd</code>。</div>
+  </div>
+  {% endif %}
+
+  <div class="grid g2">
+
+    {# ── 数据库 ── #}
+    <section class="card">
+      <header>
+        <h2>数据库</h2>
+        {% if db.ok %}<span class="badge ok">已连接</span>
+        {% else %}<span class="badge bad">失败</span>{% endif %}
+      </header>
+      <div class="body">
+        <div class="kv"><span class="k">引擎</span><span class="v"><code>{{ db.engine }}</code></span></div>
+        <div class="kv"><span class="k">库名</span><span class="v"><code>{{ db.name }}</code></span></div>
+        <div class="kv"><span class="k">主机:端口</span><span class="v"><code>{{ db.host }}:{{ db.port }}</code></span></div>
+        {% if db.server_version %}
+        <div class="kv"><span class="k">服务端</span><span class="v">{{ db.server_version }}</span></div>
+        {% endif %}
+        <div class="kv"><span class="k">pgvector</span><span class="v">
+          {% if db.pgvector %}<span class="badge ok">{{ db.pgvector }}</span>
+          {% else %}<span class="badge na">未安装 / SQLite</span>{% endif %}
+        </span></div>
+        <div class="kv"><span class="k">表数量</span><span class="v">{{ db.table_count }}</span></div>
+        {% if db.error %}
+        <div class="note bad"><span class="t">错误</span><div>{{ db.error }}</div></div>
+        {% endif %}
+      </div>
+    </section>
+
+    {# ── 缓存与队列 ── #}
+    <section class="card">
+      <header>
+        <h2>缓存与异步队列</h2>
+        {% if cache.ok %}<span class="badge ok">正常</span>
+        {% else %}<span class="badge bad">异常</span>{% endif %}
+      </header>
+      <div class="body">
+        <div class="kv"><span class="k">缓存后端</span><span class="v"><code>{{ cache.backend }}</code></span></div>
+        {% if cache.roundtrip %}
+        <div class="kv"><span class="k">读写自检</span><span class="v">{{ cache.roundtrip }}</span></div>
+        {% endif %}
+        {% if cache.error %}
+        <div class="note bad"><span class="t">错误</span><div>{{ cache.error }}</div></div>
+        {% endif %}
+        <div class="kv"><span class="k">队列</span><span class="v">
+          {% for q in queues %}<code>{{ q }}</code>{% if not forloop.last %} {% endif %}{% endfor %}
+        </span></div>
+        {% if not celery_wired %}
+        <div class="note warn">
+          <span class="t">说明</span>
+          <div>Celery <strong>尚未接线</strong>：<code>apps/*/tasks.py</code> 仍是空壳，
+            AI 生题 / 批量练习 / 扫码识别 / 文档解析<b>没有真正的异步执行</b>。
+            Redis 已就绪（<code>16380</code>），接线时直接用
+            <code>redis://127.0.0.1:16380/0</code>。
+            <br>题库 / 组卷 / 发布 / 答题 / 批改 / 学情<strong>全部是同步链路，已端到端跑通</strong>。</div>
+        </div>
+        {% endif %}
+      </div>
+    </section>
+  </div>
+
+  {# ── 存量数据 ── #}
+  <section class="card" style="margin-top: var(--zf-space-4)">
+    <header>
+      <h2>存量数据</h2>
+      <span class="badge info">真实计数</span>
+    </header>
+    <div class="body">
+      {% if db.ok %}
+      <div class="counts">
+        {% for c in counts %}
+        <div class="count">
+          {% if c.missing %}
+            <div class="n missing">缺表</div>
+          {% elif c.value is None %}
+            <div class="n missing">查询失败</div>
+          {% elif c.value == 0 %}
+            <div class="n zero">0</div>
+          {% else %}
+            <div class="n">{{ c.value }}</div>
+          {% endif %}
+          <div class="l">{{ c.label }}</div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="note bad"><span class="t">跳过</span>
+        <div>数据库未连通，计数无法读取。</div></div>
+      {% endif %}
+    </div>
+  </section>
+
+  {# ── 题型与状态分布 ── #}
+  {% if breakdown.available %}
+  <div class="grid g2">
+    <section class="card">
+      <header><h2>题型分布</h2></header>
+      <div class="body">
+        {% if breakdown.rows %}
+          {% for r in breakdown.rows %}
+          <div class="bar">
+            <span class="lb">{{ r.type }}</span>
+            <span class="track"><span class="fill" style="width: {{ r.pct }}%"></span></span>
+            <span class="num">{{ r.n }}</span>
+          </div>
+          {% endfor %}
+        {% else %}<div class="note info"><span class="t">空</span><div>题库还没有题目。</div></div>{% endif %}
+      </div>
+    </section>
+    <section class="card">
+      <header><h2>题目状态</h2></header>
+      <div class="body">
+        {% if breakdown.status %}
+          {% for r in breakdown.status %}
+          <div class="bar">
+            <span class="lb">{{ r.status }}</span>
+            <span class="track"><span class="fill" style="width: {{ r.pct }}%; background: {% if r.status == 'APPROVED' %}var(--zf-success){% elif r.status == 'DRAFT' %}var(--zf-text-tertiary){% elif r.status == 'REJECTED' %}var(--zf-danger){% else %}var(--zf-warning){% endif %}"></span></span>
+            <span class="num">{{ r.n }}</span>
+          </div>
+          {% endfor %}
+        {% else %}<div class="note info"><span class="t">空</span><div>无状态数据。</div></div>{% endif %}
+      </div>
+    </section>
+  </div>
+  {% endif %}
+
+  {# ── 接口入口 ── #}
+  <section class="card" style="margin-top: var(--zf-space-4)">
+    <header>
+      <h2>接口入口</h2>
+      <span class="badge na">API 前缀 {{ api_prefix }}</span>
+    </header>
+    <div class="body">
+      <div class="mods">
+        {% for name, desc in api_modules %}
+        <a class="mod" href="{{ api_prefix }}{{ name }}/" target="_blank" rel="noopener">
+          {{ desc }}<span class="p">{{ api_prefix }}{{ name }}/</span>
+        </a>
+        {% endfor %}
+        <a class="mod" href="/health/" target="_blank" rel="noopener">
+          健康检查<span class="p">/health/</span></a>
+        <a class="mod" href="/api/v1/auth/me/" target="_blank" rel="noopener">
+          当前用户<span class="p">/api/v1/auth/me/</span></a>
+      </div>
+      <div class="note info">
+        <span class="t">提示</span>
+        <div>业务接口需要 <code>Authorization: Bearer &lt;token&gt;</code>。
+          先用 <code>POST {{ api_prefix }}auth/login/</code> 取令牌
+          （<code>{"username": "...", "password": "..."}</code>）。
+          未认证访问会返回 <code>401</code>，这是预期的。</div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div>知否 v{{ version }} · 当前时间 {{ now|date:"Y-m-d H:i:s" }}</div>
+    <div class="links">
+      <a href="/admin/">后台管理</a>
+      <a href="/health/">健康检查</a>
+      <a href="{{ api_prefix }}">API 根</a>
+    </div>
+  </footer>
+</div>
+</body>
+</html>

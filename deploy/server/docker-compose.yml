@@ -1,0 +1,334 @@
+# ══════════════════════════════════════════════════════════════
+#  知否 · 自有云服务器部署（docker compose）
+#
+#  ★ 放置位置：/opt/zhifou/docker-compose.yml
+#  ★ 工作目录：所有命令都要先 `cd /opt/zhifou` 再执行
+#  ★ 配套文件：同目录下的 Dockerfile、requirements.prod.txt、
+#              .env（由 .env.prod.example 改名而来）、server/（后端源码）
+#
+#  常用命令：
+#      docker compose up -d --build      # 构建并启动（首次或改代码后）
+#      docker compose ps                 # 看各服务是否 healthy
+#      docker compose logs -f web        # 看后端日志
+#      docker compose restart web        # 只重启后端
+#      docker compose down               # 停止（数据卷不会丢）
+#
+#  ★ 端口约定：8000 **只映射到宿主机的 127.0.0.1**，外网访问不到。
+#    宿主机上的 Nginx（宝塔面板）用 `proxy_pass http://127.0.0.1:8000` 反代。
+#    ★ 为什么必须映射：Nginx 跑在宿主机上，不在容器网络里，
+#      不映射它连不到 Django。
+#    ★ 为什么写 127.0.0.1:8000 而不是 8000:8000：
+#      后者会监听 0.0.0.0，等于把 Django 直接暴露到公网，绕过 Nginx 的
+#      HTTPS / 限流 / 隐藏后缀三层保护。
+#  ★ 数据库与 Redis 则完全不映射端口，连 127.0.0.1 都不监听。
+#
+#  ★ 内存：按 4 核 4G 服务器分配，全部服务加起来约 3.6G。
+#    如果你的机器更小，请同步下调各服务的 memory 值。
+# ══════════════════════════════════════════════════════════════
+
+name: zhifou
+
+services:
+  # ══════════════════════════════════════════════════════════
+  #  PostgreSQL 16
+  #  ★ 不映射宿主机端口：数据库只允许容器网络内部访问，
+  #    外界（含公网扫描器）连不到它，安全性最高。
+  #  ★ 不需要 pgvector 扩展：84 个迁移里没有 CREATE EXTENSION vector
+  # ══════════════════════════════════════════════════════════
+  db:
+    image: postgres:16-alpine
+    container_name: zhifou_db
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-zhifou}
+      POSTGRES_USER: ${POSTGRES_USER:-zhifou}
+      # ★ 没有密码就拒绝启动（:? 的写法）——比容器反复重启更好排查
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?请在 .env 里填写 POSTGRES_PASSWORD}
+      # UTF8 + C locale：中文排序按字节，与本地开发环境保持一致
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+      TZ: Asia/Shanghai
+    volumes:
+      - zf_pg_data:/var/lib/postgresql/data
+    # ★ $$ 是转义写法，最终在容器里变成 $POSTGRES_USER（用容器内的环境变量）。
+    #   不写死 zhifou，是为了你改了 .env 里的用户名后这里依然能用。
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 640M
+
+  # ══════════════════════════════════════════════════════════
+  #  Redis 7（Celery 消息队列 + Django 缓存）
+  #  ★ 同样不映射宿主机端口
+  # ══════════════════════════════════════════════════════════
+  redis:
+    image: redis:7-alpine
+    container_name: zhifou_redis
+    restart: unless-stopped
+    command: >-
+      redis-server
+      --appendonly yes
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+    # ★ appendonly：任务结果开 AOF 持久化，重启 Redis 不丢（存到 zf_redis_data）
+    # ★ allkeys-lru：内存到 256MB 就淘汰最久未用的 key。
+    #   ⚠ 副作用：极端情况下可能淘汰掉还没消费的 Celery 消息。
+    #     如果后面发现任务偶尔「莫名消失」，把策略改成 noeviction 并调大内存。
+    volumes:
+      - zf_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 320M
+
+  # ══════════════════════════════════════════════════════════
+  #  Web（gunicorn 跑 Django）
+  #  ★ 2 个 worker × 2 线程 = 4 并发：4 核机器别开多，
+  #    开多了内存不够，反而更慢（每个 worker 都要加载 cv2/onnx）
+  # ══════════════════════════════════════════════════════════
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: zhifou-server:prod
+    container_name: zhifou_web
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DJANGO_SETTINGS_MODULE: zhifou.settings.serverprod
+      # ★ 下面几项在这里再写一遍是**兜底**：即使 .env 里忘改/改错，
+      #   也不会出现「Django 去连 127.0.0.1 的 Postgres」「文件写进容器可写层」
+      #   这类不报错、但上线后才发现的错误。
+      #   （compose 里 environment 的优先级高于 env_file）
+      ZF_DB_HOST: db
+      ZF_DB_PORT: "5432"
+      ZF_REDIS_URL: redis://redis:6379/0
+      ZF_MEDIA_ROOT: /app/media
+      # ★★ 媒体文件真正的落盘目录。不设它，文件会写进容器内的
+      #    /app/.zf-storage（apps/media/storage.py 的默认：os.getcwd() + .zf-storage）
+      #    → 重建容器即丢，且宿主机 /opt/zhifou/media 永远是空目录
+      #      （备份脚本会打出一个空包，而且**不会有任何报错**）
+      ZF_STORAGE_ROOT: /app/media
+      # ★★ 重算类任务的投递开关。默认 inline = 在 gunicorn 进程里同步算
+      #    → worker_calc（p2_recompute）永远空闲，批改接口明显变慢
+      ZF_TASK_MODE: queued
+      # ★★ 扫码识别的投递开关。默认 thread = 在 web 进程里开线程算
+      #    → worker_io（p0_critical）收不到任务，识别时页面卡住
+      #    （另外两个开关只对「谁投递」有意义，worker 是被投的一方，故只兜底到这）
+      ZF_SCAN_RECOGNITION: celery
+      TZ: Asia/Shanghai
+    # ★ 只对本机（Nginx）开放，公网扫描器扫不到。
+    #   ★★ 宿主机端口用 ZF_WEB_HOST_PORT 控制，默认 8000。
+    #      什么时候必须改：宿主机 8000 已经被别的程序占用时（比如这台机器上
+    #      跑着 uvicorn 活动广场，就占着 127.0.0.1:8000）。不改的后果是
+    #      容器起不来（port is already allocated），或者更糟 ——
+    #      Nginx 把知否的请求转给了那个旧程序。
+    #      ★ 改了这里，Nginx 的 proxy_pass 和 .env 里的值必须一起改。
+    ports:
+      - "127.0.0.1:${ZF_WEB_HOST_PORT:-8000}:8000"
+    volumes:
+      - zf_static:/app/staticfiles
+      - zf_media:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: >-
+      gunicorn zhifou.wsgi:application
+      --bind 0.0.0.0:8000
+      --workers 2
+      --threads 2
+      --worker-class gthread
+      --timeout 300
+      --graceful-timeout 60
+      --access-logfile -
+      --error-logfile -
+    # ★ 用 http 探活而不是 https：容器内部没有证书。
+    #   /health/ 已被 serverprod.py 加进 SECURE_REDIRECT_EXEMPT，
+    #   所以不会被 SECURE_SSL_REDIRECT 301 跳走。★ 这两件事必须成对存在。
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8000/health/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      # ★ 120s 起步宽限期：首次启动时 gunicorn 要加载 cv2 / onnxruntime
+      #   （rapidocr 那一大包），慢机器上从「容器起来」到「能应答」可能要 1 分钟以上。
+      #   宽限期内探活失败**不计入** retries，避免服务其实正常却被判 unhealthy。
+      #   机器更慢就把这个值继续调大——它只影响首次判定，不影响稳态。
+      start_period: 120s
+    deploy:
+      resources:
+        limits:
+          memory: 896M
+
+  # ══════════════════════════════════════════════════════════
+  #  Worker · IO 密集（扫码识别 / 导入解析 / AI 生成）
+  #  ★ 队列来自 base.py 的 CELERY_TASK_ROUTES：
+  #      apps.omr.* / apps.ingest.* → p0_critical
+  #      apps.ai.*                  → p1_generate
+  #  这两个队列都是「用户当面等着结果」的，所以分到同一个 worker。
+  # ══════════════════════════════════════════════════════════
+  worker_io:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: zhifou-server:prod
+    container_name: zhifou_worker_io
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DJANGO_SETTINGS_MODULE: zhifou.settings.serverprod
+      ZF_DB_HOST: db
+      ZF_DB_PORT: "5432"
+      ZF_REDIS_URL: redis://redis:6379/0
+      ZF_MEDIA_ROOT: /app/media
+      # ★★ 与 web 保持一致，两项缺一不可：
+      #    ZF_STORAGE_ROOT → 文件写进卷 /app/media（不是容器可写层）
+      #    ZF_TASK_MODE    → 重算任务投到 p2_recompute（不是同步算）
+      ZF_STORAGE_ROOT: /app/media
+      ZF_TASK_MODE: queued
+      TZ: Asia/Shanghai
+    volumes:
+      - zf_media:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: >-
+      celery -A zhifou worker
+      -Q p0_critical,p1_generate
+      --concurrency 2
+      --loglevel INFO
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+
+  # ══════════════════════════════════════════════════════════
+  #  Worker · 计算密集（掌握度重算 / 统计 / 批改 / 导出）
+  #  ★ 队列：p2_recompute（可延迟，不与前台抢资源）
+  # ══════════════════════════════════════════════════════════
+  worker_calc:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: zhifou-server:prod
+    container_name: zhifou_worker_calc
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DJANGO_SETTINGS_MODULE: zhifou.settings.serverprod
+      ZF_DB_HOST: db
+      ZF_DB_PORT: "5432"
+      ZF_REDIS_URL: redis://redis:6379/0
+      ZF_MEDIA_ROOT: /app/media
+      # ★★ 与 web 保持一致，两项缺一不可：
+      #    ZF_STORAGE_ROOT → 文件写进卷 /app/media（不是容器可写层）
+      #    ZF_TASK_MODE    → 重算任务投到 p2_recompute（不是同步算）
+      ZF_STORAGE_ROOT: /app/media
+      ZF_TASK_MODE: queued
+      TZ: Asia/Shanghai
+    volumes:
+      - zf_media:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: >-
+      celery -A zhifou worker
+      -Q p2_recompute
+      --concurrency 2
+      --loglevel INFO
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # ══════════════════════════════════════════════════════════
+  #  Beat（定时任务调度器）
+  #  ★ 只负责「按时投递任务」，真正干活的是上面两个 worker。
+  #  ★ 全站只能有 1 个 beat 实例，千万不要为了高可用开第二个。
+  # ══════════════════════════════════════════════════════════
+  beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: zhifou-server:prod
+    container_name: zhifou_beat
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DJANGO_SETTINGS_MODULE: zhifou.settings.serverprod
+      ZF_DB_HOST: db
+      ZF_DB_PORT: "5432"
+      ZF_REDIS_URL: redis://redis:6379/0
+      ZF_MEDIA_ROOT: /app/media
+      # beat 只负责「按时投递」，不读写文件，所以不需要 ZF_STORAGE_ROOT；
+      # ZF_TASK_MODE 与上面保持一致，避免调度与执行形态不一致
+      ZF_TASK_MODE: queued
+      TZ: Asia/Shanghai
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: >-
+      celery -A zhifou beat
+      --loglevel INFO
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+# ══════════════════════════════════════════════════════════════
+#  数据卷
+#
+#  ★ zf_pg_data / zf_redis_data 是 Docker 管理的命名卷，
+#    数据藏在 /var/lib/docker/volumes 下，删容器也不会丢。
+#
+#  ★ zf_static / zf_media 特意用「命名卷 + bind」的写法：
+#      - 名字仍然是 zf_static / zf_media（运维脚本可以按名字引用）
+#      - 真实路径固定在 /opt/zhifou/staticfiles 与 /opt/zhifou/media
+#    ★ 为什么不能直接用普通命名卷：宿主机上的 Nginx 要 alias 到
+#      /opt/zhifou/staticfiles 才能直接吐静态文件，
+#      普通命名卷宿主机是看不到里面的文件的。
+#
+#  ★ 如果你改了部署根目录，请同步改下面两行 device 的路径。
+# ══════════════════════════════════════════════════════════════
+volumes:
+  zf_pg_data:
+    driver: local
+  zf_redis_data:
+    driver: local
+  zf_media:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/zhifou/media
+  zf_static:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/zhifou/staticfiles

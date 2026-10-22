@@ -1,0 +1,107 @@
+# ══════════════════════════════════════════════════════════
+#  知否 · 版本控制忽略规则
+# ══════════════════════════════════════════════════════════
+
+# ── Python ──
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+.venv/
+venv/
+env/
+
+# ── Django ──
+*.log
+db.sqlite3
+# ★ SQLite 自检库：仅用于无数据库环境下的迁移生成自检，不入库
+db.sqlite3.dev-only
+/staticfiles/
+/media/
+/local_settings.py
+
+# ── 测试与覆盖率 ──
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.mypy_cache/
+.ruff_cache/
+
+# ── 前端 ──
+node_modules/
+web/dist/
+web/dist-deploy/
+web/.vite/
+*.tsbuildinfo
+pnpm-lock.yaml.bak
+
+# ── 环境与密钥 ──
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+!deploy/**/*.example
+# ★ 明文密钥清单（2026-10-23 排查发现：docs/API key.txt 里躺着真实
+#   DeepSeek key）。凡是文件名带 key / secret / token / 口令 的文本，
+#   一律先假定它不该入库。
+docs/API key.txt
+docs/*[Kk]ey*.txt
+docs/*[Ss]ecret*.txt
+docs/*口令*.txt
+# ★ 本地开发凭据（真实口令）。样例 .devcreds.example 入库，本文件不入库。
+.devcreds.local
+
+# ── 编辑器与系统 ──
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# ══════════════════════════════════════════════════════════
+#  ★ 以下为项目数据与产物的处理规则（重要）
+# ══════════════════════════════════════════════════════════
+
+# 开发期临时依赖目录（清华镜像安装，不入库）
+.devdeps/
+.depcheck/
+.devdeps-install*.log
+
+# 原始数据备份（含真实题目，体积大且属学校资产）
+docs/题目资料.备份-*.xlsx
+
+# PoC 渲染中间产物（保留 PDF 与截图，丢弃渲染缓存）
+docs/poc/**/manifest.json
+
+# ── 运行时存储（★ 必须忽略）──
+# LocalStorage 的落盘根。里面是**真实学生的答题卡扫描件与配图**，
+# 既属学校资产（含学生姓名、学号），体积也到 350MB 量级。
+# ★ 一旦误提交，光靠后续删除是删不掉的 —— 它们会永远留在 git 历史里。
+.zf-storage/
+server/media/
+web/public/uploads/
+
+# ── 开发产物与日志 ──
+# artifacts 是每次跑验收脚本的落盘（PDF / 截图 / 控制台日志），
+# 属于「过程」，不属于「代码」。需要留下证据时另行归档。
+/artifacts/
+/.logs/
+/tmp/
+*.tmp
+
+# ── 本地工具与记忆 ──
+# .workbuddy 是开发助手的工程记忆，里面有本机账号口令、排查笔记等
+# 只对这台机器有意义的内容。**绝不可入库。**
+.workbuddy/
+
+# ── 依赖锁（按需保留）──
+# 前端用 pnpm，锁文件必须入库；这两个是历史遗留的备份，不入库
+*-lock.json.bak

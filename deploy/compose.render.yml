@@ -1,0 +1,60 @@
+# 知否 · 试卷渲染服务（compose 片段）
+#
+# ★ 这个文件是**可选的**：不启动它，Django 会自动回退到 reportlab，
+#   公式退化为近似文本并在导出结果里标记 `render_engine=LEGACY`。
+#   计划 §3.2 的原则是「回退要能工作，但要留痕」。
+#
+# 用法：
+#     docker compose -f deploy/compose.render.yml up -d --build
+#     docker compose -f deploy/compose.render.yml logs -f
+#     docker compose -f deploy/compose.render.yml down
+#
+# 与 Django 对接（在 Django 的环境变量里配）：
+#     ZF_RENDER_URL=http://render:7001
+#     ZF_RENDER_TOKEN=<与 RENDER_TOKEN 相同>
+#
+# ★ 内存：Chromium 常驻约 300MB，单次打印峰值可到 200MB。
+#   所以 limit 给 1.2G、并发上限 2 —— 这两个数字要一起调。
+#
+# ★ 必须与 U36（部署验收）合并做：本地一切正常、线上满页方框，
+#   原因几乎总是镜像里没装 fonts-noto-cjk。Dockerfile 已装，
+#   但验收时仍要真导一份含公式的卷子看。
+
+name: zhifou-render
+
+services:
+  render:
+    build:
+      context: ../render-service
+      dockerfile: Dockerfile
+    image: zhifou-render:1.0.0
+    container_name: zhifou_render
+    restart: unless-stopped
+    environment:
+      # ★ 从 .env 读，不在编排文件里写死密钥
+      RENDER_TOKEN: ${RENDER_TOKEN:?必须设置 RENDER_TOKEN（与 Django 的 ZF_RENDER_TOKEN 一致）}
+      RENDER_PORT: "7001"
+      RENDER_CONCURRENCY: "2"
+      RENDER_TIMEOUT_MS: "30000"
+      TZ: Asia/Shanghai
+    ports:
+      # ★ 默认只绑本机：这是内网服务，不该暴露到宿主机公网网卡。
+      #   反向代理或 Django 同网络时可以把这段删掉。
+      - "127.0.0.1:7001:7001"
+    # Chromium 需要更大的 /dev/shm；不设的话默认 64MB，
+    # 多页打印会以 "Target closed" 崩掉（报错信息完全看不出是 shm 的问题）
+    shm_size: "512mb"
+    deploy:
+      resources:
+        limits:
+          memory: 1.2G
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:7001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      start_period: 25s
+      retries: 3

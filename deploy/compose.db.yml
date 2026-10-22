@@ -1,0 +1,119 @@
+# 知否 · 本地开发环境（最小栈）
+#
+# ★ 与 `compose.local.yml` 的区别：
+#
+#     `compose.local.yml`  完整栈（PostgreSQL + Redis + MinIO）
+#     本文件               **只起 PostgreSQL + Redis**
+#
+#   拆成两个文件的理由：一期**还没有对象存储的真实读写路径**
+#   （`media` 的 S3 后端已实现但未接线），先把数据库与缓存跑起来
+#   就能做迁移与联调；MinIO 等到要跑扫描/导出时再加，
+#   避免多两个容器占内存、多两个失败点。
+#
+# 用法：
+#     docker compose -f deploy/compose.db.yml up -d
+#     docker compose -f deploy/compose.db.yml ps
+#     docker compose -f deploy/compose.db.yml logs -f postgres
+#     docker compose -f deploy/compose.db.yml down          # 保留数据
+#     docker compose -f deploy/compose.db.yml down -v       # ★ 删数据卷
+#
+# ★★ 端口与现场容器一致（2026-10-18 统一）：
+#     15433 PostgreSQL （5432 被 question-bank-pg 占用）
+#     16380 Redis      （6379 被 zhifou_redis_dev 占用）
+#     9100  留给 MinIO  （见 compose.local.yml）
+#
+# ★★ 镜像名用**本地已缓存的标签**，不用 `docker.m.daocloud.io/...`：
+#     宿主机主 DNS（61.153.177.197）已失效，任何需要联网解析的
+#     拉取都会先超时 7–9 秒。用本地标签可以让 `up` 完全不碰网络。
+#     需要更新镜像时再显式 `docker pull`。
+#
+#     含 pgvector 的 PostgreSQL 只能从镜像源取（官方 postgres 镜像
+#     不含它）——本机已缓存 `docker.m.daocloud.io/pgvector/pgvector:pg16`。
+
+name: tiku-db
+
+services:
+  # ══════════════════════════════════════════════════════════
+  #  PostgreSQL 16 + pgvector 0.8.7
+  #  ★ pgvector 是知识库向量召回的必需依赖（06 文档三路召回）
+  #  ★ 无 pgvector 的 `postgres:16` 会让 `VectorField` 迁移直接失败
+  # ══════════════════════════════════════════════════════════
+  postgres:
+    image: docker.m.daocloud.io/pgvector/pgvector:pg16
+    container_name: tiku_postgres_15433
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: zhifou
+      POSTGRES_USER: zhifou
+      POSTGRES_PASSWORD: zhifou
+      # ★ 编码 UTF8，locale 用 C（排序稳定可预测；中文排序靠应用层）
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+      TZ: UTC
+      # ★ 关掉 fsync 与同步提交：本地开发机器断电概率低，
+      #   换来的是测试跑得快很多（每次 migrate 有几百个事务）。
+      #   ★★ 生产环境**绝不能**这样配（见 04 部署手册）。
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+    ports:
+      - "15433:5432"
+    volumes:
+      - tiku_pg_data:/var/lib/postgresql/data
+      # ★ 首次初始化时启用 vector / pg_trgm / uuid-ossp / btree_gin
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zhifou -d zhifou"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    command:
+      - "postgres"
+      # 开发环境放宽日志，便于排查慢查询
+      - "-c"
+      - "log_min_duration_statement=200"
+      - "-c"
+      - "timezone=UTC"
+      # 本地开发提速（生产禁用）
+      - "-c"
+      - "fsync=off"
+      - "-c"
+      - "synchronous_commit=off"
+      - "-c"
+      - "full_page_writes=off"
+      # ★ 连接数：Django + Celery worker + 测试并发
+      - "-c"
+      - "max_connections=200"
+
+  # ══════════════════════════════════════════════════════════
+  #  Redis（Celery broker + 结果后端 + Django cache）
+  #  ★ 三个队列（p0_critical / p1_generate / p2_recompute）
+  #    共用这一个实例，**用 db 隔离**：
+  #      db 0 -> Celery broker 与 result backend
+  #      db 1 -> Django cache（登录限流计数、幂等锁）
+  #    ★ 用 db 而不是「再来一个 Redis 容器」：少一个进程、
+  #      少一个端口、备份只需一处。
+  # ══════════════════════════════════════════════════════════
+  redis:
+    image: redis:7-alpine
+    container_name: tiku_redis
+    restart: unless-stopped
+    ports:
+      - "16380:6379"
+    volumes:
+      - tiku_redis_data:/data
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+
+volumes:
+  tiku_pg_data:
+    name: tiku_pg_data
+  tiku_redis_data:
+    name: tiku_redis_data

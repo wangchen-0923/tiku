@@ -1,0 +1,3078 @@
+{
+ "config": {
+  "page_size": "A4",
+  "orientation": "PORTRAIT",
+  "margin_mm": 20.0,
+  "line_spacing": 1.5,
+  "base_font_pt": 10.5,
+  "title_font_pt": 16.0,
+  "title_text": "2026 秋季《机械基础》期中考试（v3.1 样卷）",
+  "show_title": true,
+  "student_fields": [
+   "学号",
+   "座号",
+   "班级",
+   "姓名",
+   "得分"
+  ],
+  "student_line_extra": "考场：第三考场",
+  "notes_text": "注意事项：\n1. 请用黑色签字笔在答题卡上作答，卷面作答无效。\n2. 考试时间 90 分钟，满分 100 分。\n3. 作图题请使用铅笔，保持卷面整洁。",
+  "show_notes": true,
+  "show_page_number": true,
+  "page_number_align": "center",
+  "answer_bracket": true,
+  "show_score": true,
+  "option_font_pt": 12.0,
+  "option_cols_by_seq": {
+   "16": 2
+  },
+  "blank_blocks": [
+   {
+    "id": "b-after-5",
+    "after_seq": 5,
+    "height_mm": 30.0
+   },
+   {
+    "id": "b-after-12",
+    "after_seq": 12,
+    "height_mm": 25.0
+   },
+   {
+    "id": "b-end",
+    "after_seq": 31,
+    "height_mm": 40.0
+   }
+  ]
+ },
+ "page_width_mm": 210.0,
+ "page_height_mm": 297.0,
+ "margin_mm": 20.0,
+ "usable_width_mm": 170.0,
+ "usable_height_mm": 257.0,
+ "header_height_mm": 54.18,
+ "header": {
+  "title": {
+   "text": "2026 秋季《机械基础》期中考试（v3.1 样卷）",
+   "lines": [
+    "2026 秋季《机械基础》期中考试（v3.1 样卷）"
+   ],
+   "y_mm": 25.08,
+   "font_pt": 16.0,
+   "line_h_mm": 8.18
+  },
+  "subtitle": {
+   "text": "满分：112 分",
+   "y_mm": 31.33,
+   "font_pt": 10.5
+  },
+  "student_items": [
+   {
+    "label": "学号：",
+    "name": "学号",
+    "line_no": 1,
+    "x_mm": 0.0,
+    "label_w_mm": 11.112,
+    "underline_x_mm": 11.112,
+    "underline_w_mm": 18.087,
+    "y_mm": 39.19,
+    "seg_w_mm": 29.2
+   },
+   {
+    "label": "座号：",
+    "name": "座号",
+    "line_no": 1,
+    "x_mm": 35.2,
+    "label_w_mm": 11.112,
+    "underline_x_mm": 46.312,
+    "underline_w_mm": 18.087,
+    "y_mm": 39.19,
+    "seg_w_mm": 29.2
+   },
+   {
+    "label": "班级：",
+    "name": "班级",
+    "line_no": 1,
+    "x_mm": 70.4,
+    "label_w_mm": 11.112,
+    "underline_x_mm": 81.513,
+    "underline_w_mm": 18.087,
+    "y_mm": 39.19,
+    "seg_w_mm": 29.2
+   },
+   {
+    "label": "姓名：",
+    "name": "姓名",
+    "line_no": 1,
+    "x_mm": 105.6,
+    "label_w_mm": 11.112,
+    "underline_x_mm": 116.713,
+    "underline_w_mm": 18.087,
+    "y_mm": 39.19,
+    "seg_w_mm": 29.2
+   },
+   {
+    "label": "得分：",
+    "name": "得分",
+    "line_no": 1,
+    "x_mm": 140.8,
+    "label_w_mm": 11.112,
+    "underline_x_mm": 151.913,
+    "underline_w_mm": 18.087,
+    "y_mm": 39.19,
+    "seg_w_mm": 29.2
+   }
+  ],
+  "student_lines": 1,
+  "student_extra": {
+   "text": "考场：第三考场",
+   "y_mm": 47.83,
+   "font_pt": 10.5
+  },
+  "notes": {
+   "lines": [
+    "注意事项：",
+    "1. 请用黑色签字笔在答题卡上作答，卷面作答无效。",
+    "2. 考试时间 90 分钟，满分 100 分。",
+    "3. 作图题请使用铅笔，保持卷面整洁。"
+   ],
+   "y_mm": 53.08,
+   "font_pt": 9.5,
+   "line_h_mm": 5.03
+  },
+  "rules": [
+   34.66,
+   43.7
+  ],
+  "height_mm": 54.18
+ },
+ "page_count": 4,
+ "issues": [
+  {
+   "code": "PAPER.OPTION_WRAPPED",
+   "message": "第 16 题的选项在指定/最小列数下仍超宽，已按列宽折行（不截断、不省略号）",
+   "blocking": false
+  }
+ ],
+ "figure_gap_mm": 1.0,
+ "pages": [
+  {
+   "page_no": 1,
+   "used_mm": 0.0,
+   "page_number": {
+    "text": "第 1 页 / 共 4 页",
+    "y_mm": 287.0,
+    "align": "center"
+   },
+   "blocks": [
+    {
+     "kind": "stem",
+     "y_mm": 74.18,
+     "height_mm": 8.04,
+     "seq": null,
+     "text": "一、单项选择题",
+     "title_lines": [
+      "一、单项选择题　（本大题共 20 小题，每题 3 分，共 60 分）"
+     ],
+     "stem_lines": [],
+     "line_h_mm": 8.04,
+     "seq_label": "",
+     "option_cols": 0,
+     "option_w_mm": 0.0,
+     "option_font_pt": 0.0,
+     "option_row_heights": [],
+     "option_cells": [],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "q_stems",
+     "y_mm": 82.22,
+     "height_mm": 11.12,
+     "seq": 1,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [
+      "（　　）1. 宝武集团在生产大型机床床身时，该零件需承受较大压力，应选用________性能优良的材料",
+      "。"
+     ],
+     "line_h_mm": 5.56,
+     "seq_label": "",
+     "option_cols": 0,
+     "option_w_mm": 0.0,
+     "option_font_pt": 0.0,
+     "option_row_heights": [],
+     "option_cells": [],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "figure",
+     "y_mm": 93.34,
+     "height_mm": 43.46,
+     "seq": 1,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [],
+     "line_h_mm": 0.0,
+     "seq_label": "",
+     "option_cols": 0,
+     "option_w_mm": 0.0,
+     "option_font_pt": 0.0,
+     "option_row_heights": [],
+     "option_cells": [],
+     "force_letter": false,
+     "asset_id": 630,
+     "image_id": 140,
+     "attach_point": "STEM",
+     "x_mm": 79.6,
+     "width_mm": 50.8,
+     "image_h_mm": 38.1,
+     "caption": "图 1 齿轮传动示意图",
+     "caption_lines": [
+      "图 1 齿轮传动示意图"
+     ],
+     "caption_line_h_mm": 4.76,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "choice_row",
+     "y_mm": 138.8,
+     "height_mm": 6.35,
+     "seq": 1,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [],
+     "line_h_mm": 0.0,
+     "seq_label": "",
+     "option_cols": 4,
+     "option_w_mm": 42.5,
+     "option_font_pt": 12.0,
+     "option_row_heights": [
+      6.35
+     ],
+     "option_cells": [
+      {
+       "label": "A.",
+       "text": "抗压强度",
+       "lines": [
+        "A. 抗压强度"
+       ],
+       "row": 0,
+       "col": 0,
+       "x_mm": 0.0,
+       "y_mm": 0.0,
+       "width_mm": 42.5
+      },
+      {
+       "label": "B.",
+       "text": "抗剪强度",
+       "lines": [
+        "B. 抗剪强度"
+       ],
+       "row": 0,
+       "col": 1,
+       "x_mm": 42.5,
+       "y_mm": 0.0,
+       "width_mm": 42.5
+      },
+      {
+       "label": "C.",
+       "text": "疲劳强度",
+       "lines": [
+        "C. 疲劳强度"
+       ],
+       "row": 0,
+       "col": 2,
+       "x_mm": 85.0,
+       "y_mm": 0.0,
+       "width_mm": 42.5
+      },
+      {
+       "label": "D.",
+       "text": "导热性",
+       "lines": [
+        "D. 导热性"
+       ],
+       "row": 0,
+       "col": 3,
+       "x_mm": 127.5,
+       "y_mm": 0.0,
+       "width_mm": 42.5
+      }
+     ],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "q_stems",
+     "y_mm": 145.15,
+     "height_mm": 11.12,
+     "seq": 2,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [
+      "（　　）2. 比亚迪新能源汽车生产电池外壳时，需通过冲压工艺成形，要求材料具有良好的________性",
+      "能。"
+     ],
+     "line_h_mm": 5.56,
+     "seq_label": "",
+     "option_cols": 0,
+     "option_w_mm": 0.0,
+     "option_font_pt": 0.0,
+     "option_row_heights": [],
+     "option_cells": [],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "figure",
+     "y_mm": 156.27,
+     "height_mm": 43.46,
+     "seq": 2,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [],
+     "line_h_mm": 0.0,
+     "seq_label": "",
+     "option_cols": 0,
+     "option_w_mm": 0.0,
+     "option_font_pt": 0.0,
+     "option_row_heights": [],
+     "option_cells": [],
+     "force_letter": false,
+     "asset_id": 631,
+     "image_id": 141,
+     "attach_point": "STEM",
+     "x_mm": 79.6,
+     "width_mm": 50.8,
+     "image_h_mm": 38.1,
+     "caption": "图 2 齿轮传动示意图",
+     "caption_lines": [
+      "图 2 齿轮传动示意图"
+     ],
+     "caption_line_h_mm": 4.76,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "choice_row",
+     "y_mm": 201.73,
+     "height_mm": 6.35,
+     "seq": 2,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [],
+     "line_h_mm": 0.0,
+     "seq_label": "",
+     "option_cols": 4,
+     "option_w_mm": 42.5,
+     "option_font_pt": 12.0,
+     "option_row_heights": [
+      6.35
+     ],
+     "option_cells": [
+      {
+       "label": "A.",
+       "text": "铸造性能",
+       "lines": [
+        "A. 铸造性能"
+       ],
+       "row": 0,
+       "col": 0,
+       "x_mm": 0.0,
+       "y_mm": 0.0,
+       "width_mm": 42.5
+      },
+      {
+       "label": "B.",
+       "text": "可锻性",
+       "lines": [
+        "B. 可锻性"
+       ],
+       "row": 0,
+       "col": 1,
+       "x_mm": 42.5,
+       "y_mm": 0.0,
+       "width_mm": 42.5
+      },
+      {
+       "label": "C.",
+       "text": "切削加工性能",
+       "lines": [
+        "C. 切削加工性能"
+       ],
+       "row": 0,
+       "col": 2,
+       "x_mm": 85.0,
+       "y_mm": 0.0,
+       "width_mm": 42.5
+      },
+      {
+       "label": "D.",
+       "text": "抗氧化性",
+       "lines": [
+        "D. 抗氧化性"
+       ],
+       "row": 0,
+       "col": 3,
+       "x_mm": 127.5,
+       "y_mm": 0.0,
+       "width_mm": 42.5
+      }
+     ],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "q_stems",
+     "y_mm": 208.08,
+     "height_mm": 5.56,
+     "seq": 3,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [
+      "（　　）3. 不能通过拉伸试验来确定的性能指标是＿＿＿＿"
+     ],
+     "line_h_mm": 5.56,
+     "seq_label": "",
+     "option_cols": 0,
+     "option_w_mm": 0.0,
+     "option_font_pt": 0.0,
+     "option_row_heights": [],
+     "option_cells": [],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "choice_row",
+     "y_mm": 214.64,
+     "height_mm": 6.35,
+     "seq": 3,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [],
+     "line_h_mm": 0.0,
+     "seq_label": "",
+     "option_cols": 4,
+     "option_w_mm": 42.5,
+     "option_font_pt": 12.0,
+     "option_row_heights": [
+      6.35
+     ],
+     "option_cells": [
+      {
+       "label": "A.",
+       "text": "断后伸长率",
+       "lines": [
+        "A. 断后伸长率"
+       ],
+       "row": 0,
+       "col": 0,
+       "x_mm": 0.0,
+       "y_mm": 0.0,
+       "width_mm": 42.5
+      },
+      {
+       "label": "B.",
+       "text": "弹性模量",
+       "lines": [
+        "B. 弹性模量"
+       ],
+       "row": 0,
+       "col": 1,
+       "x_mm": 42.5,
+       "y_mm": 0.0,
+       "width_mm": 42.5
+      },
+      {
+       "label": "C.",
+       "text": "拉伸强度",
+       "lines": [
+        "C. 拉伸强度"
+       ],
+       "row": 0,
+       "col": 2,
+       "x_mm": 85.0,
+       "y_mm": 0.0,
+       "width_mm": 42.5
+      },
+      {
+       "label": "D.",
+       "text": "疲劳强度",
+       "lines": [
+        "D. 疲劳强度"
+       ],
+       "row": 0,
+       "col": 3,
+       "x_mm": 127.5,
+       "y_mm": 0.0,
+       "width_mm": 42.5
+      }
+     ],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "q_stems",
+     "y_mm": 220.99,
+     "height_mm": 5.56,
+     "seq": 4,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [
+      "（　　）4. 常用来测量有色金属和铸铁的硬度指标是＿＿＿＿"
+     ],
+     "line_h_mm": 5.56,
+     "seq_label": "",
+     "option_cols": 0,
+     "option_w_mm": 0.0,
+     "option_font_pt": 0.0,
+     "option_row_heights": [],
+     "option_cells": [],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "choice_row",
+     "y_mm": 227.55,
+     "height_mm": 6.35,
+     "seq": 4,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [],
+     "line_h_mm": 0.0,
+     "seq_label": "",
+     "option_cols": 4,
+     "option_w_mm": 42.5,
+     "option_font_pt": 12.0,
+     "option_row_heights": [
+      6.35
+     ],
+     "option_cells": [
+      {
+       "label": "A.",
+       "text": "HB",
+       "lines": [
+        "A. HB"
+       ],
+       "row": 0,
+       "col": 0,
+       "x_mm": 0.0,
+       "y_mm": 0.0,
+       "width_mm": 42.5
+      },
+      {
+       "label": "B.",
+       "text": "HV",
+       "lines": [
+        "B. HV"
+       ],
+       "row": 0,
+       "col": 1,
+       "x_mm": 42.5,
+       "y_mm": 0.0,
+       "width_mm": 42.5
+      },
+      {
+       "label": "C.",
+       "text": "HRA",
+       "lines": [
+        "C. HRA"
+       ],
+       "row": 0,
+       "col": 2,
+       "x_mm": 85.0,
+       "y_mm": 0.0,
+       "width_mm": 42.5
+      },
+      {
+       "label": "D.",
+       "text": "HRC",
+       "lines": [
+        "D. HRC"
+       ],
+       "row": 0,
+       "col": 3,
+       "x_mm": 127.5,
+       "y_mm": 0.0,
+       "width_mm": 42.5
+      }
+     ],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "q_stems",
+     "y_mm": 233.9,
+     "height_mm": 5.56,
+     "seq": 5,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [
+      "（　　）5. 东方电气在制造锅炉的受热管时，管子需在高温下工作，需材料具备良好的________性能。"
+     ],
+     "line_h_mm": 5.56,
+     "seq_label": "",
+     "option_cols": 0,
+     "option_w_mm": 0.0,
+     "option_font_pt": 0.0,
+     "option_row_heights": [],
+     "option_cells": [],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "choice_row",
+     "y_mm": 240.46,
+     "height_mm": 6.35,
+     "seq": 5,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [],
+     "line_h_mm": 0.0,
+     "seq_label": "",
+     "option_cols": 4,
+     "option_w_mm": 42.5,
+     "option_font_pt": 12.0,
+     "option_row_heights": [
+      6.35
+     ],
+     "option_cells": [
+      {
+       "label": "A.",
+       "text": "抗氧化性",
+       "lines": [
+        "A. 抗氧化性"
+       ],
+       "row": 0,
+       "col": 0,
+       "x_mm": 0.0,
+       "y_mm": 0.0,
+       "width_mm": 42.5
+      },
+      {
+       "label": "B.",
+       "text": "导电性",
+       "lines": [
+        "B. 导电性"
+       ],
+       "row": 0,
+       "col": 1,
+       "x_mm": 42.5,
+       "y_mm": 0.0,
+       "width_mm": 42.5
+      },
+      {
+       "label": "C.",
+       "text": "切削加工性能",
+       "lines": [
+        "C. 切削加工性能"
+       ],
+       "row": 0,
+       "col": 2,
+       "x_mm": 85.0,
+       "y_mm": 0.0,
+       "width_mm": 42.5
+      },
+      {
+       "label": "D.",
+       "text": "铸造性能",
+       "lines": [
+        "D. 铸造性能"
+       ],
+       "row": 0,
+       "col": 3,
+       "x_mm": 127.5,
+       "y_mm": 0.0,
+       "width_mm": 42.5
+      }
+     ],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "blank",
+     "y_mm": 246.81,
+     "height_mm": 30.0,
+     "seq": null,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [],
+     "line_h_mm": 0.0,
+     "seq_label": "",
+     "option_cols": 0,
+     "option_w_mm": 0.0,
+     "option_font_pt": 0.0,
+     "option_row_heights": [],
+     "option_cells": [],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "b-after-5",
+     "after_seq": 5
+    }
+   ]
+  },
+  {
+   "page_no": 2,
+   "used_mm": 0.0,
+   "page_number": {
+    "text": "第 2 页 / 共 4 页",
+    "y_mm": 287.0,
+    "align": "center"
+   },
+   "blocks": [
+    {
+     "kind": "q_stems",
+     "y_mm": 20.0,
+     "height_mm": 11.12,
+     "seq": 6,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [
+      "（　　）6. 根据锻压行业技术规范，对金属材料进行锻压加工时，若材料________好，则变形抗力小，",
+      "易于成形。"
+     ],
+     "line_h_mm": 5.56,
+     "seq_label": "",
+     "option_cols": 0,
+     "option_w_mm": 0.0,
+     "option_font_pt": 0.0,
+     "option_row_heights": [],
+     "option_cells": [],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "choice_row",
+     "y_mm": 32.12,
+     "height_mm": 6.35,
+     "seq": 6,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [],
+     "line_h_mm": 0.0,
+     "seq_label": "",
+     "option_cols": 4,
+     "option_w_mm": 42.5,
+     "option_font_pt": 12.0,
+     "option_row_heights": [
+      6.35
+     ],
+     "option_cells": [
+      {
+       "label": "A.",
+       "text": "铸造性能",
+       "lines": [
+        "A. 铸造性能"
+       ],
+       "row": 0,
+       "col": 0,
+       "x_mm": 0.0,
+       "y_mm": 0.0,
+       "width_mm": 42.5
+      },
+      {
+       "label": "B.",
+       "text": "可锻性",
+       "lines": [
+        "B. 可锻性"
+       ],
+       "row": 0,
+       "col": 1,
+       "x_mm": 42.5,
+       "y_mm": 0.0,
+       "width_mm": 42.5
+      },
+      {
+       "label": "C.",
+       "text": "焊接性",
+       "lines": [
+        "C. 焊接性"
+       ],
+       "row": 0,
+       "col": 2,
+       "x_mm": 85.0,
+       "y_mm": 0.0,
+       "width_mm": 42.5
+      },
+      {
+       "label": "D.",
+       "text": "疲劳强度",
+       "lines": [
+        "D. 疲劳强度"
+       ],
+       "row": 0,
+       "col": 3,
+       "x_mm": 127.5,
+       "y_mm": 0.0,
+       "width_mm": 42.5
+      }
+     ],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "q_stems",
+     "y_mm": 38.47,
+     "height_mm": 11.12,
+     "seq": 7,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [
+      "（　　）7. 根据航空制造行业技术规范，制造飞机发动机叶片（受高温）时，需材料具备良好的______",
+      "__，以抵抗高温氧化。"
+     ],
+     "line_h_mm": 5.56,
+     "seq_label": "",
+     "option_cols": 0,
+     "option_w_mm": 0.0,
+     "option_font_pt": 0.0,
+     "option_row_heights": [],
+     "option_cells": [],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "choice_row",
+     "y_mm": 50.59,
+     "height_mm": 6.35,
+     "seq": 7,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [],
+     "line_h_mm": 0.0,
+     "seq_label": "",
+     "option_cols": 4,
+     "option_w_mm": 42.5,
+     "option_font_pt": 12.0,
+     "option_row_heights": [
+      6.35
+     ],
+     "option_cells": [
+      {
+       "label": "A.",
+       "text": "抗氧化性",
+       "lines": [
+        "A. 抗氧化性"
+       ],
+       "row": 0,
+       "col": 0,
+       "x_mm": 0.0,
+       "y_mm": 0.0,
+       "width_mm": 42.5
+      },
+      {
+       "label": "B.",
+       "text": "导电性",
+       "lines": [
+        "B. 导电性"
+       ],
+       "row": 0,
+       "col": 1,
+       "x_mm": 42.5,
+       "y_mm": 0.0,
+       "width_mm": 42.5
+      },
+      {
+       "label": "C.",
+       "text": "热膨胀性",
+       "lines": [
+        "C. 热膨胀性"
+       ],
+       "row": 0,
+       "col": 2,
+       "x_mm": 85.0,
+       "y_mm": 0.0,
+       "width_mm": 42.5
+      },
+      {
+       "label": "D.",
+       "text": "切削加工性能",
+       "lines": [
+        "D. 切削加工性能"
+       ],
+       "row": 0,
+       "col": 3,
+       "x_mm": 127.5,
+       "y_mm": 0.0,
+       "width_mm": 42.5
+      }
+     ],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "q_stems",
+     "y_mm": 56.94,
+     "height_mm": 11.12,
+     "seq": 8,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [
+      "（　　）8. 根据机床制造行业常识，制造机床床身时，应选用________好的材料，以承受机床工作时的",
+      "压力。"
+     ],
+     "line_h_mm": 5.56,
+     "seq_label": "",
+     "option_cols": 0,
+     "option_w_mm": 0.0,
+     "option_font_pt": 0.0,
+     "option_row_heights": [],
+     "option_cells": [],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "choice_row",
+     "y_mm": 69.06,
+     "height_mm": 6.35,
+     "seq": 8,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [],
+     "line_h_mm": 0.0,
+     "seq_label": "",
+     "option_cols": 4,
+     "option_w_mm": 42.5,
+     "option_font_pt": 12.0,
+     "option_row_heights": [
+      6.35
+     ],
+     "option_cells": [
+      {
+       "label": "A.",
+       "text": "抗拉强度",
+       "lines": [
+        "A. 抗拉强度"
+       ],
+       "row": 0,
+       "col": 0,
+       "x_mm": 0.0,
+       "y_mm": 0.0,
+       "width_mm": 42.5
+      },
+      {
+       "label": "B.",
+       "text": "抗压强度",
+       "lines": [
+        "B. 抗压强度"
+       ],
+       "row": 0,
+       "col": 1,
+       "x_mm": 42.5,
+       "y_mm": 0.0,
+       "width_mm": 42.5
+      },
+      {
+       "label": "C.",
+       "text": "疲劳强度",
+       "lines": [
+        "C. 疲劳强度"
+       ],
+       "row": 0,
+       "col": 2,
+       "x_mm": 85.0,
+       "y_mm": 0.0,
+       "width_mm": 42.5
+      },
+      {
+       "label": "D.",
+       "text": "冲击强度",
+       "lines": [
+        "D. 冲击强度"
+       ],
+       "row": 0,
+       "col": 3,
+       "x_mm": 127.5,
+       "y_mm": 0.0,
+       "width_mm": 42.5
+      }
+     ],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "q_stems",
+     "y_mm": 75.41,
+     "height_mm": 5.56,
+     "seq": 9,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [
+      "（　　）9. 根据机械加工行业常识，判断材料切削加工性能好坏的重要标准之一是________。"
+     ],
+     "line_h_mm": 5.56,
+     "seq_label": "",
+     "option_cols": 0,
+     "option_w_mm": 0.0,
+     "option_font_pt": 0.0,
+     "option_row_heights": [],
+     "option_cells": [],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "choice_row",
+     "y_mm": 81.97,
+     "height_mm": 12.7,
+     "seq": 9,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [],
+     "line_h_mm": 0.0,
+     "seq_label": "",
+     "option_cols": 2,
+     "option_w_mm": 85.0,
+     "option_font_pt": 12.0,
+     "option_row_heights": [
+      6.35,
+      6.35
+     ],
+     "option_cells": [
+      {
+       "label": "A.",
+       "text": "材料熔点高低",
+       "lines": [
+        "A. 材料熔点高低"
+       ],
+       "row": 0,
+       "col": 0,
+       "x_mm": 0.0,
+       "y_mm": 0.0,
+       "width_mm": 85.0
+      },
+      {
+       "label": "B.",
+       "text": "切削时切屑是否易折断",
+       "lines": [
+        "B. 切削时切屑是否易折断"
+       ],
+       "row": 0,
+       "col": 1,
+       "x_mm": 85.0,
+       "y_mm": 0.0,
+       "width_mm": 85.0
+      },
+      {
+       "label": "C.",
+       "text": "材料磁性强弱",
+       "lines": [
+        "C. 材料磁性强弱"
+       ],
+       "row": 1,
+       "col": 0,
+       "x_mm": 0.0,
+       "y_mm": 6.35,
+       "width_mm": 85.0
+      },
+      {
+       "label": "D.",
+       "text": "材料密度大小",
+       "lines": [
+        "D. 材料密度大小"
+       ],
+       "row": 1,
+       "col": 1,
+       "x_mm": 85.0,
+       "y_mm": 6.35,
+       "width_mm": 85.0
+      }
+     ],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "q_stems",
+     "y_mm": 94.67,
+     "height_mm": 11.12,
+     "seq": 10,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [
+      "（　　）10. 根据机械设计行业常识，设计承受冲击载荷的冲模时，除要求材料有足够强度和硬度外，",
+      "还需保证材料具有良好的________。"
+     ],
+     "line_h_mm": 5.56,
+     "seq_label": "",
+     "option_cols": 0,
+     "option_w_mm": 0.0,
+     "option_font_pt": 0.0,
+     "option_row_heights": [],
+     "option_cells": [],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "choice_row",
+     "y_mm": 106.79,
+     "height_mm": 6.35,
+     "seq": 10,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [],
+     "line_h_mm": 0.0,
+     "seq_label": "",
+     "option_cols": 4,
+     "option_w_mm": 42.5,
+     "option_font_pt": 12.0,
+     "option_row_heights": [
+      6.35
+     ],
+     "option_cells": [
+      {
+       "label": "A.",
+       "text": "塑性",
+       "lines": [
+        "A. 塑性"
+       ],
+       "row": 0,
+       "col": 0,
+       "x_mm": 0.0,
+       "y_mm": 0.0,
+       "width_mm": 42.5
+      },
+      {
+       "label": "B.",
+       "text": "韧性",
+       "lines": [
+        "B. 韧性"
+       ],
+       "row": 0,
+       "col": 1,
+       "x_mm": 42.5,
+       "y_mm": 0.0,
+       "width_mm": 42.5
+      },
+      {
+       "label": "C.",
+       "text": "耐蚀性",
+       "lines": [
+        "C. 耐蚀性"
+       ],
+       "row": 0,
+       "col": 2,
+       "x_mm": 85.0,
+       "y_mm": 0.0,
+       "width_mm": 42.5
+      },
+      {
+       "label": "D.",
+       "text": "导热性",
+       "lines": [
+        "D. 导热性"
+       ],
+       "row": 0,
+       "col": 3,
+       "x_mm": 127.5,
+       "y_mm": 0.0,
+       "width_mm": 42.5
+      }
+     ],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "q_stems",
+     "y_mm": 113.14,
+     "height_mm": 5.56,
+     "seq": 11,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [
+      "（　　）11. 对于Q340，下列说法正确的是＿＿＿＿"
+     ],
+     "line_h_mm": 5.56,
+     "seq_label": "",
+     "option_cols": 0,
+     "option_w_mm": 0.0,
+     "option_font_pt": 0.0,
+     "option_row_heights": [],
+     "option_cells": [],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "choice_row",
+     "y_mm": 119.7,
+     "height_mm": 12.7,
+     "seq": 11,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [],
+     "line_h_mm": 0.0,
+     "seq_label": "",
+     "option_cols": 2,
+     "option_w_mm": 85.0,
+     "option_font_pt": 12.0,
+     "option_row_heights": [
+      6.35,
+      6.35
+     ],
+     "option_cells": [
+      {
+       "label": "A.",
+       "text": "一种普通碳素结构钢",
+       "lines": [
+        "A. 一种普通碳素结构钢"
+       ],
+       "row": 0,
+       "col": 0,
+       "x_mm": 0.0,
+       "y_mm": 0.0,
+       "width_mm": 85.0
+      },
+      {
+       "label": "B.",
+       "text": "焊接性良好",
+       "lines": [
+        "B. 焊接性良好"
+       ],
+       "row": 0,
+       "col": 1,
+       "x_mm": 85.0,
+       "y_mm": 0.0,
+       "width_mm": 85.0
+      },
+      {
+       "label": "C.",
+       "text": "抗拉强度为340MPa",
+       "lines": [
+        "C. 抗拉强度为340MPa"
+       ],
+       "row": 1,
+       "col": 0,
+       "x_mm": 0.0,
+       "y_mm": 6.35,
+       "width_mm": 85.0
+      },
+      {
+       "label": "D.",
+       "text": "合金元素含量在2.5％以上",
+       "lines": [
+        "D. 合金元素含量在2.5％以上"
+       ],
+       "row": 1,
+       "col": 1,
+       "x_mm": 85.0,
+       "y_mm": 6.35,
+       "width_mm": 85.0
+      }
+     ],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "q_stems",
+     "y_mm": 132.4,
+     "height_mm": 5.56,
+     "seq": 12,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [
+      "（　　）12. 根据 GB/T 1299—2014《工模具钢》，关于 “T8A 钢” 的说法，错误的是________。"
+     ],
+     "line_h_mm": 5.56,
+     "seq_label": "",
+     "option_cols": 0,
+     "option_w_mm": 0.0,
+     "option_font_pt": 0.0,
+     "option_row_heights": [],
+     "option_cells": [],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "choice_row",
+     "y_mm": 138.96,
+     "height_mm": 25.4,
+     "seq": 12,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [],
+     "line_h_mm": 0.0,
+     "seq_label": "",
+     "option_cols": 1,
+     "option_w_mm": 170.0,
+     "option_font_pt": 12.0,
+     "option_row_heights": [
+      6.35,
+      6.35,
+      6.35,
+      6.35
+     ],
+     "option_cells": [
+      {
+       "label": "A.",
+       "text": "“T” 表示非合金工具钢的类别符号",
+       "lines": [
+        "A. “T” 表示非合金工具钢的类别符号"
+       ],
+       "row": 0,
+       "col": 0,
+       "x_mm": 0.0,
+       "y_mm": 0.0,
+       "width_mm": 170.0
+      },
+      {
+       "label": "B.",
+       "text": "“8” 表示碳的平均质量分数为 0.8%",
+       "lines": [
+        "B. “8” 表示碳的平均质量分数为 0.8%"
+       ],
+       "row": 1,
+       "col": 0,
+       "x_mm": 0.0,
+       "y_mm": 6.35,
+       "width_mm": 170.0
+      },
+      {
+       "label": "C.",
+       "text": "“A” 表示该钢为高级优质钢，硫磷含量更低",
+       "lines": [
+        "C. “A” 表示该钢为高级优质钢，硫磷含量更低"
+       ],
+       "row": 2,
+       "col": 0,
+       "x_mm": 0.0,
+       "y_mm": 12.7,
+       "width_mm": 170.0
+      },
+      {
+       "label": "D.",
+       "text": "该钢塑性好，适合制造大型锻压模具",
+       "lines": [
+        "D. 该钢塑性好，适合制造大型锻压模具"
+       ],
+       "row": 3,
+       "col": 0,
+       "x_mm": 0.0,
+       "y_mm": 19.05,
+       "width_mm": 170.0
+      }
+     ],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "blank",
+     "y_mm": 164.36,
+     "height_mm": 25.0,
+     "seq": null,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [],
+     "line_h_mm": 0.0,
+     "seq_label": "",
+     "option_cols": 0,
+     "option_w_mm": 0.0,
+     "option_font_pt": 0.0,
+     "option_row_heights": [],
+     "option_cells": [],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "b-after-12",
+     "after_seq": 12
+    },
+    {
+     "kind": "q_stems",
+     "y_mm": 189.36,
+     "height_mm": 5.56,
+     "seq": 13,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [
+      "（　　）13. 根据 GB/T 699—2015《优质碳素结构钢》，“08 钢” 中 “08” 的含义是________。"
+     ],
+     "line_h_mm": 5.56,
+     "seq_label": "",
+     "option_cols": 0,
+     "option_w_mm": 0.0,
+     "option_font_pt": 0.0,
+     "option_row_heights": [],
+     "option_cells": [],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "choice_row",
+     "y_mm": 195.92,
+     "height_mm": 12.7,
+     "seq": 13,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [],
+     "line_h_mm": 0.0,
+     "seq_label": "",
+     "option_cols": 2,
+     "option_w_mm": 85.0,
+     "option_font_pt": 12.0,
+     "option_row_heights": [
+      6.35,
+      6.35
+     ],
+     "option_cells": [
+      {
+       "label": "A.",
+       "text": "碳的平均质量分数为 0.08%",
+       "lines": [
+        "A. 碳的平均质量分数为 0.08%"
+       ],
+       "row": 0,
+       "col": 0,
+       "x_mm": 0.0,
+       "y_mm": 0.0,
+       "width_mm": 85.0
+      },
+      {
+       "label": "B.",
+       "text": "碳的平均质量分数为 8%",
+       "lines": [
+        "B. 碳的平均质量分数为 8%"
+       ],
+       "row": 0,
+       "col": 1,
+       "x_mm": 85.0,
+       "y_mm": 0.0,
+       "width_mm": 85.0
+      },
+      {
+       "label": "C.",
+       "text": "锰的平均质量分数为 0.08%",
+       "lines": [
+        "C. 锰的平均质量分数为 0.08%"
+       ],
+       "row": 1,
+       "col": 0,
+       "x_mm": 0.0,
+       "y_mm": 6.35,
+       "width_mm": 85.0
+      },
+      {
+       "label": "D.",
+       "text": "屈服强度为 08MPa",
+       "lines": [
+        "D. 屈服强度为 08MPa"
+       ],
+       "row": 1,
+       "col": 1,
+       "x_mm": 85.0,
+       "y_mm": 6.35,
+       "width_mm": 85.0
+      }
+     ],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "q_stems",
+     "y_mm": 208.62,
+     "height_mm": 5.56,
+     "seq": 14,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [
+      "（　　）14. 关于非合金钢的整体应用，下列说法错误的是________。"
+     ],
+     "line_h_mm": 5.56,
+     "seq_label": "",
+     "option_cols": 0,
+     "option_w_mm": 0.0,
+     "option_font_pt": 0.0,
+     "option_row_heights": [],
+     "option_cells": [],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "choice_row",
+     "y_mm": 215.18,
+     "height_mm": 25.4,
+     "seq": 14,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [],
+     "line_h_mm": 0.0,
+     "seq_label": "",
+     "option_cols": 1,
+     "option_w_mm": 170.0,
+     "option_font_pt": 12.0,
+     "option_row_heights": [
+      6.35,
+      6.35,
+      6.35,
+      6.35
+     ],
+     "option_cells": [
+      {
+       "label": "A.",
+       "text": "非合金钢是工业中应用最广泛的金属材料之一",
+       "lines": [
+        "A. 非合金钢是工业中应用最广泛的金属材料之一"
+       ],
+       "row": 0,
+       "col": 0,
+       "x_mm": 0.0,
+       "y_mm": 0.0,
+       "width_mm": 170.0
+      },
+      {
+       "label": "B.",
+       "text": "非合金钢的可锻性、焊接性优于合金钢",
+       "lines": [
+        "B. 非合金钢的可锻性、焊接性优于合金钢"
+       ],
+       "row": 1,
+       "col": 0,
+       "x_mm": 0.0,
+       "y_mm": 6.35,
+       "width_mm": 170.0
+      },
+      {
+       "label": "C.",
+       "text": "非合金工具钢主要用于制造高速切削刀具",
+       "lines": [
+        "C. 非合金工具钢主要用于制造高速切削刀具"
+       ],
+       "row": 2,
+       "col": 0,
+       "x_mm": 0.0,
+       "y_mm": 12.7,
+       "width_mm": 170.0
+      },
+      {
+       "label": "D.",
+       "text": "铸钢适合制造形状复杂且承受冲击的零件",
+       "lines": [
+        "D. 铸钢适合制造形状复杂且承受冲击的零件"
+       ],
+       "row": 3,
+       "col": 0,
+       "x_mm": 0.0,
+       "y_mm": 19.05,
+       "width_mm": 170.0
+      }
+     ],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "q_stems",
+     "y_mm": 240.58,
+     "height_mm": 5.56,
+     "seq": 15,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [
+      "（　　）15. 关于非合金钢中硅元素的作用，下列说法正确的是________。"
+     ],
+     "line_h_mm": 5.56,
+     "seq_label": "",
+     "option_cols": 0,
+     "option_w_mm": 0.0,
+     "option_font_pt": 0.0,
+     "option_row_heights": [],
+     "option_cells": [],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "choice_row",
+     "y_mm": 247.14,
+     "height_mm": 12.7,
+     "seq": 15,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [],
+     "line_h_mm": 0.0,
+     "seq_label": "",
+     "option_cols": 2,
+     "option_w_mm": 85.0,
+     "option_font_pt": 12.0,
+     "option_row_heights": [
+      6.35,
+      6.35
+     ],
+     "option_cells": [
+      {
+       "label": "A.",
+       "text": "硅能提高钢的硬度和耐磨性",
+       "lines": [
+        "A. 硅能提高钢的硬度和耐磨性"
+       ],
+       "row": 0,
+       "col": 0,
+       "x_mm": 0.0,
+       "y_mm": 0.0,
+       "width_mm": 85.0
+      },
+      {
+       "label": "B.",
+       "text": "硅能提高钢的强度，对塑性影响较小",
+       "lines": [
+        "B. 硅能提高钢的强度，对塑性影响较小"
+       ],
+       "row": 0,
+       "col": 1,
+       "x_mm": 85.0,
+       "y_mm": 0.0,
+       "width_mm": 85.0
+      },
+      {
+       "label": "C.",
+       "text": "硅是有害元素，会导致钢 “冷脆”",
+       "lines": [
+        "C. 硅是有害元素，会导致钢 “冷脆”"
+       ],
+       "row": 1,
+       "col": 0,
+       "x_mm": 0.0,
+       "y_mm": 6.35,
+       "width_mm": 85.0
+      },
+      {
+       "label": "D.",
+       "text": "硅由原材料带入，无法控制含量",
+       "lines": [
+        "D. 硅由原材料带入，无法控制含量"
+       ],
+       "row": 1,
+       "col": 1,
+       "x_mm": 85.0,
+       "y_mm": 6.35,
+       "width_mm": 85.0
+      }
+     ],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    }
+   ]
+  },
+  {
+   "page_no": 3,
+   "used_mm": 0.0,
+   "page_number": {
+    "text": "第 3 页 / 共 4 页",
+    "y_mm": 287.0,
+    "align": "center"
+   },
+   "blocks": [
+    {
+     "kind": "q_stems",
+     "y_mm": 20.0,
+     "height_mm": 5.56,
+     "seq": 16,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [
+      "（　　）16. 根据 GB/T 相关标准，关于金属材料洛氏硬度的说法，下列正确的是________。"
+     ],
+     "line_h_mm": 5.56,
+     "seq_label": "",
+     "option_cols": 0,
+     "option_w_mm": 0.0,
+     "option_font_pt": 0.0,
+     "option_row_heights": [],
+     "option_cells": [],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "choice_row",
+     "y_mm": 25.56,
+     "height_mm": 25.4,
+     "seq": 16,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [],
+     "line_h_mm": 0.0,
+     "seq_label": "",
+     "option_cols": 2,
+     "option_w_mm": 85.0,
+     "option_font_pt": 12.0,
+     "option_row_heights": [
+      12.7,
+      12.7
+     ],
+     "option_cells": [
+      {
+       "label": "A.",
+       "text": "洛氏硬度应用最广，适合测定淬火件、硬质合金件等成品件表面硬度",
+       "lines": [
+        "A. 洛氏硬度应用最广，适合测定淬火件、硬",
+        "质合金件等成品件表面硬度"
+       ],
+       "row": 0,
+       "col": 0,
+       "x_mm": 0.0,
+       "y_mm": 0.0,
+       "width_mm": 85.0
+      },
+      {
+       "label": "B.",
+       "text": "洛氏硬度主要测定半成品或毛坯件，如灰铸铁毛坯",
+       "lines": [
+        "B. 洛氏硬度主要测定半成品或毛坯件，如灰",
+        "铸铁毛坯"
+       ],
+       "row": 0,
+       "col": 1,
+       "x_mm": 85.0,
+       "y_mm": 0.0,
+       "width_mm": 85.0
+      },
+      {
+       "label": "C.",
+       "text": "洛氏硬度与布氏硬度可通过固定公式直接换算",
+       "lines": [
+        "C. 洛氏硬度与布氏硬度可通过固定公式直接",
+        "换算"
+       ],
+       "row": 1,
+       "col": 0,
+       "x_mm": 0.0,
+       "y_mm": 12.7,
+       "width_mm": 85.0
+      },
+      {
+       "label": "D.",
+       "text": "洛氏硬度试验对零件损伤大，不适合测定薄壁件",
+       "lines": [
+        "D. 洛氏硬度试验对零件损伤大，不适合测定",
+        "薄壁件"
+       ],
+       "row": 1,
+       "col": 1,
+       "x_mm": 85.0,
+       "y_mm": 12.7,
+       "width_mm": 85.0
+      }
+     ],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "q_stems",
+     "y_mm": 50.96,
+     "height_mm": 5.56,
+     "seq": 17,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [
+      "（　　）17. 关于金属材料可锻性的说法，下列错误的是________。"
+     ],
+     "line_h_mm": 5.56,
+     "seq_label": "",
+     "option_cols": 0,
+     "option_w_mm": 0.0,
+     "option_font_pt": 0.0,
+     "option_row_heights": [],
+     "option_cells": [],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "choice_row",
+     "y_mm": 57.52,
+     "height_mm": 25.4,
+     "seq": 17,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [],
+     "line_h_mm": 0.0,
+     "seq_label": "",
+     "option_cols": 1,
+     "option_w_mm": 170.0,
+     "option_font_pt": 12.0,
+     "option_row_heights": [
+      6.35,
+      6.35,
+      6.35,
+      6.35
+     ],
+     "option_cells": [
+      {
+       "label": "A.",
+       "text": "可锻性是材料能否用锻压方法制成锻压件的性能，与塑性和变形抗力相关",
+       "lines": [
+        "A. 可锻性是材料能否用锻压方法制成锻压件的性能，与塑性和变形抗力相关"
+       ],
+       "row": 0,
+       "col": 0,
+       "x_mm": 0.0,
+       "y_mm": 0.0,
+       "width_mm": 170.0
+      },
+      {
+       "label": "B.",
+       "text": "黄铜和变形铝合金在室温下可锻性好，适合进行常温冲压成形",
+       "lines": [
+        "B. 黄铜和变形铝合金在室温下可锻性好，适合进行常温冲压成形"
+       ],
+       "row": 1,
+       "col": 0,
+       "x_mm": 0.0,
+       "y_mm": 6.35,
+       "width_mm": 170.0
+      },
+      {
+       "label": "C.",
+       "text": "非合金钢在加热状态下可锻性提高，因此锻造时通常需要加热",
+       "lines": [
+        "C. 非合金钢在加热状态下可锻性提高，因此锻造时通常需要加热"
+       ],
+       "row": 2,
+       "col": 0,
+       "x_mm": 0.0,
+       "y_mm": 12.7,
+       "width_mm": 170.0
+      },
+      {
+       "label": "D.",
+       "text": "铸铁的可锻性较好，可通过锻压方法制成复杂形状的锻件",
+       "lines": [
+        "D. 铸铁的可锻性较好，可通过锻压方法制成复杂形状的锻件"
+       ],
+       "row": 3,
+       "col": 0,
+       "x_mm": 0.0,
+       "y_mm": 19.05,
+       "width_mm": 170.0
+      }
+     ],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "q_stems",
+     "y_mm": 82.92,
+     "height_mm": 5.56,
+     "seq": 18,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [
+      "（　　）18. 关于金属材料疲劳强度的说法，下列错误的是________。"
+     ],
+     "line_h_mm": 5.56,
+     "seq_label": "",
+     "option_cols": 0,
+     "option_w_mm": 0.0,
+     "option_font_pt": 0.0,
+     "option_row_heights": [],
+     "option_cells": [],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "choice_row",
+     "y_mm": 89.48,
+     "height_mm": 25.4,
+     "seq": 18,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [],
+     "line_h_mm": 0.0,
+     "seq_label": "",
+     "option_cols": 1,
+     "option_w_mm": 170.0,
+     "option_font_pt": 12.0,
+     "option_row_heights": [
+      6.35,
+      6.35,
+      6.35,
+      6.35
+     ],
+     "option_cells": [
+      {
+       "label": "A.",
+       "text": "疲劳强度是材料在无限多次交变载荷下不破坏的最大应力，又称疲劳极限",
+       "lines": [
+        "A. 疲劳强度是材料在无限多次交变载荷下不破坏的最大应力，又称疲劳极限"
+       ],
+       "row": 0,
+       "col": 0,
+       "x_mm": 0.0,
+       "y_mm": 0.0,
+       "width_mm": 170.0
+      },
+      {
+       "label": "B.",
+       "text": "测定钢铁材料疲劳强度时，通常规定承受 10⁷次交变载荷而不断裂的最大应力为指标",
+       "lines": [
+        "B. 测定钢铁材料疲劳强度时，通常规定承受 10⁷次交变载荷而不断裂的最大应力为指标"
+       ],
+       "row": 1,
+       "col": 0,
+       "x_mm": 0.0,
+       "y_mm": 6.35,
+       "width_mm": 170.0
+      },
+      {
+       "label": "C.",
+       "text": "疲劳断裂是逐渐发生的，破坏前有明显塑性变形，危险性较低",
+       "lines": [
+        "C. 疲劳断裂是逐渐发生的，破坏前有明显塑性变形，危险性较低"
+       ],
+       "row": 2,
+       "col": 0,
+       "x_mm": 0.0,
+       "y_mm": 12.7,
+       "width_mm": 170.0
+      },
+      {
+       "label": "D.",
+       "text": "可通过改善零件表面粗糙度、采用热处理等方法提高材料的疲劳强度",
+       "lines": [
+        "D. 可通过改善零件表面粗糙度、采用热处理等方法提高材料的疲劳强度"
+       ],
+       "row": 3,
+       "col": 0,
+       "x_mm": 0.0,
+       "y_mm": 19.05,
+       "width_mm": 170.0
+      }
+     ],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "q_stems",
+     "y_mm": 114.88,
+     "height_mm": 5.56,
+     "seq": 19,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [
+      "（　　）19. 关于金属材料强度的说法，下列错误的是________。"
+     ],
+     "line_h_mm": 5.56,
+     "seq_label": "",
+     "option_cols": 0,
+     "option_w_mm": 0.0,
+     "option_font_pt": 0.0,
+     "option_row_heights": [],
+     "option_cells": [],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "choice_row",
+     "y_mm": 121.44,
+     "height_mm": 25.4,
+     "seq": 19,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [],
+     "line_h_mm": 0.0,
+     "seq_label": "",
+     "option_cols": 1,
+     "option_w_mm": 170.0,
+     "option_font_pt": 12.0,
+     "option_row_heights": [
+      6.35,
+      6.35,
+      6.35,
+      6.35
+     ],
+     "option_cells": [
+      {
+       "label": "A.",
+       "text": "强度是材料抵抗永久变形或断裂的能力，包括抗拉、抗压等多种类型",
+       "lines": [
+        "A. 强度是材料抵抗永久变形或断裂的能力，包括抗拉、抗压等多种类型"
+       ],
+       "row": 0,
+       "col": 0,
+       "x_mm": 0.0,
+       "y_mm": 0.0,
+       "width_mm": 170.0
+      },
+      {
+       "label": "B.",
+       "text": "屈服强度和抗拉强度是工程上常用的强度指标，可通过拉伸试验测定",
+       "lines": [
+        "B. 屈服强度和抗拉强度是工程上常用的强度指标，可通过拉伸试验测定"
+       ],
+       "row": 1,
+       "col": 0,
+       "x_mm": 0.0,
+       "y_mm": 6.35,
+       "width_mm": 170.0
+      },
+      {
+       "label": "C.",
+       "text": "铸铁的抗拉强度高于钢，因此常用于制造承受拉力的零件",
+       "lines": [
+        "C. 铸铁的抗拉强度高于钢，因此常用于制造承受拉力的零件"
+       ],
+       "row": 2,
+       "col": 0,
+       "x_mm": 0.0,
+       "y_mm": 12.7,
+       "width_mm": 170.0
+      },
+      {
+       "label": "D.",
+       "text": "设计轴类零件时，需参考材料的抗扭强度指标以保证传递扭矩的能力",
+       "lines": [
+        "D. 设计轴类零件时，需参考材料的抗扭强度指标以保证传递扭矩的能力"
+       ],
+       "row": 3,
+       "col": 0,
+       "x_mm": 0.0,
+       "y_mm": 19.05,
+       "width_mm": 170.0
+      }
+     ],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "q_stems",
+     "y_mm": 146.84,
+     "height_mm": 5.56,
+     "seq": 20,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [
+      "（　　）20. 关于金属材料韧性的说法，下列正确的是________。"
+     ],
+     "line_h_mm": 5.56,
+     "seq_label": "",
+     "option_cols": 0,
+     "option_w_mm": 0.0,
+     "option_font_pt": 0.0,
+     "option_row_heights": [],
+     "option_cells": [],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "choice_row",
+     "y_mm": 153.4,
+     "height_mm": 25.4,
+     "seq": 20,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [],
+     "line_h_mm": 0.0,
+     "seq_label": "",
+     "option_cols": 1,
+     "option_w_mm": 170.0,
+     "option_font_pt": 12.0,
+     "option_row_heights": [
+      6.35,
+      6.35,
+      6.35,
+      6.35
+     ],
+     "option_cells": [
+      {
+       "label": "A.",
+       "text": "韧性是材料在静载荷作用下抵抗断裂的能力，用抗拉强度表示",
+       "lines": [
+        "A. 韧性是材料在静载荷作用下抵抗断裂的能力，用抗拉强度表示"
+       ],
+       "row": 0,
+       "col": 0,
+       "x_mm": 0.0,
+       "y_mm": 0.0,
+       "width_mm": 170.0
+      },
+      {
+       "label": "B.",
+       "text": "夏比摆锤冲击试验可测定材料的韧性，冲击吸收能量值越低，韧性越好",
+       "lines": [
+        "B. 夏比摆锤冲击试验可测定材料的韧性，冲击吸收能量值越低，韧性越好"
+       ],
+       "row": 1,
+       "col": 0,
+       "x_mm": 0.0,
+       "y_mm": 6.35,
+       "width_mm": 170.0
+      },
+      {
+       "label": "C.",
+       "text": "活塞销、锻锤杆等受冲击载荷的零件，需具备足够韧性以避免断裂",
+       "lines": [
+        "C. 活塞销、锻锤杆等受冲击载荷的零件，需具备足够韧性以避免断裂"
+       ],
+       "row": 2,
+       "col": 0,
+       "x_mm": 0.0,
+       "y_mm": 12.7,
+       "width_mm": 170.0
+      },
+      {
+       "label": "D.",
+       "text": "脆性材料的冲击吸收能量值高，因此适合制造承受冲击的零件",
+       "lines": [
+        "D. 脆性材料的冲击吸收能量值高，因此适合制造承受冲击的零件"
+       ],
+       "row": 3,
+       "col": 0,
+       "x_mm": 0.0,
+       "y_mm": 19.05,
+       "width_mm": 170.0
+      }
+     ],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "stem",
+     "y_mm": 178.8,
+     "height_mm": 8.04,
+     "seq": null,
+     "text": "二、判断题",
+     "title_lines": [
+      "二、判断题　（本大题共 5 小题，每题 2 分，共 10 分）"
+     ],
+     "stem_lines": [],
+     "line_h_mm": 8.04,
+     "seq_label": "",
+     "option_cols": 0,
+     "option_w_mm": 0.0,
+     "option_font_pt": 0.0,
+     "option_row_heights": [],
+     "option_cells": [],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "q_stems",
+     "y_mm": 186.84,
+     "height_mm": 5.56,
+     "seq": 21,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [
+      "（　　）21. HRC是指布氏硬度。"
+     ],
+     "line_h_mm": 5.56,
+     "seq_label": "",
+     "option_cols": 0,
+     "option_w_mm": 0.0,
+     "option_font_pt": 0.0,
+     "option_row_heights": [],
+     "option_cells": [],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "q_stems",
+     "y_mm": 192.4,
+     "height_mm": 11.12,
+     "seq": 22,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [
+      "（　　）22. 宝武集团在生产大型机床床身时，选用灰铸铁作为原材料，因为灰铸铁的抗压强度高和减",
+      "震性高，能承受机床工作时的压力。"
+     ],
+     "line_h_mm": 5.56,
+     "seq_label": "",
+     "option_cols": 0,
+     "option_w_mm": 0.0,
+     "option_font_pt": 0.0,
+     "option_row_heights": [],
+     "option_cells": [],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "q_stems",
+     "y_mm": 203.52,
+     "height_mm": 11.12,
+     "seq": 23,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [
+      "（　　）23. 比亚迪新能源汽车在生产电池外壳时，采用冲压工艺，选用了可锻性好的低碳钢，因为低",
+      "碳钢室温下易冲压成形。"
+     ],
+     "line_h_mm": 5.56,
+     "seq_label": "",
+     "option_cols": 0,
+     "option_w_mm": 0.0,
+     "option_font_pt": 0.0,
+     "option_row_heights": [],
+     "option_cells": [],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "q_stems",
+     "y_mm": 214.64,
+     "height_mm": 5.56,
+     "seq": 24,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [
+      "（　　）24. 常见的力学性能有强度、塑性、硬度、韧性和疲劳强度等。"
+     ],
+     "line_h_mm": 5.56,
+     "seq_label": "",
+     "option_cols": 0,
+     "option_w_mm": 0.0,
+     "option_font_pt": 0.0,
+     "option_row_heights": [],
+     "option_cells": [],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "q_stems",
+     "y_mm": 220.2,
+     "height_mm": 11.12,
+     "seq": 25,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [
+      "（　　）25. 东方电气在制造锅炉受热管时，选用了耐热钢，因为受热管在高温下工作，需抵抗氧气氧",
+      "化以防止管壁变薄。"
+     ],
+     "line_h_mm": 5.56,
+     "seq_label": "",
+     "option_cols": 0,
+     "option_w_mm": 0.0,
+     "option_font_pt": 0.0,
+     "option_row_heights": [],
+     "option_cells": [],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "stem",
+     "y_mm": 231.32,
+     "height_mm": 8.04,
+     "seq": null,
+     "text": "三、填空题",
+     "title_lines": [
+      "三、填空题　（本大题共 3 小题，每题 4 分，共 12 分）"
+     ],
+     "stem_lines": [],
+     "line_h_mm": 8.04,
+     "seq_label": "",
+     "option_cols": 0,
+     "option_w_mm": 0.0,
+     "option_font_pt": 0.0,
+     "option_row_heights": [],
+     "option_cells": [],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "q_stems",
+     "y_mm": 239.36,
+     "height_mm": 11.12,
+     "seq": 26,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [
+      "26. 在对一级齿轮减速器进行维护时，发现连接箱体的螺栓锈蚀，连接从动轴和大齿轮的________也损",
+      "坏，需要确定规格并进行更换。"
+     ],
+     "line_h_mm": 5.56,
+     "seq_label": "",
+     "option_cols": 0,
+     "option_w_mm": 0.0,
+     "option_font_pt": 0.0,
+     "option_row_heights": [],
+     "option_cells": [],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "q_stems",
+     "y_mm": 250.48,
+     "height_mm": 11.12,
+     "seq": 27,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [
+      "27. 销是标准件，主要用作________零件以固定零件间相互位置，也可作为连接销传递不大的载荷，或",
+      "作为________中的过载剪断零件。"
+     ],
+     "line_h_mm": 5.56,
+     "seq_label": "",
+     "option_cols": 0,
+     "option_w_mm": 0.0,
+     "option_font_pt": 0.0,
+     "option_row_heights": [],
+     "option_cells": [],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "q_stems",
+     "y_mm": 261.6,
+     "height_mm": 11.12,
+     "seq": 28,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [
+      "28. 按外形分类，常用的销有圆柱销、________和开口销等。其中，________有1:50的锥度，受横向力",
+      "时能自锁，定位精度高，适用于经常拆装的场合。"
+     ],
+     "line_h_mm": 5.56,
+     "seq_label": "",
+     "option_cols": 0,
+     "option_w_mm": 0.0,
+     "option_font_pt": 0.0,
+     "option_row_heights": [],
+     "option_cells": [],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    }
+   ]
+  },
+  {
+   "page_no": 4,
+   "used_mm": 84.72,
+   "page_number": {
+    "text": "第 4 页 / 共 4 页",
+    "y_mm": 287.0,
+    "align": "center"
+   },
+   "blocks": [
+    {
+     "kind": "stem",
+     "y_mm": 20.0,
+     "height_mm": 8.04,
+     "seq": null,
+     "text": "四、简答题",
+     "title_lines": [
+      "四、简答题　（本大题共 3 小题，每题 10 分，共 30 分）"
+     ],
+     "stem_lines": [],
+     "line_h_mm": 8.04,
+     "seq_label": "",
+     "option_cols": 0,
+     "option_w_mm": 0.0,
+     "option_font_pt": 0.0,
+     "option_row_heights": [],
+     "option_cells": [],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "subjective",
+     "y_mm": 28.04,
+     "height_mm": 5.56,
+     "seq": 29,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [
+      "29. 试述齿轮传动中模数与齿数的关系（第 1 问）。"
+     ],
+     "line_h_mm": 5.56,
+     "seq_label": "",
+     "option_cols": 0,
+     "option_w_mm": 0.0,
+     "option_font_pt": 0.0,
+     "option_row_heights": [],
+     "option_cells": [],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "subjective",
+     "y_mm": 33.6,
+     "height_mm": 5.56,
+     "seq": 30,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [
+      "30. 试述齿轮传动中模数与齿数的关系（第 2 问）。"
+     ],
+     "line_h_mm": 5.56,
+     "seq_label": "",
+     "option_cols": 0,
+     "option_w_mm": 0.0,
+     "option_font_pt": 0.0,
+     "option_row_heights": [],
+     "option_cells": [],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "subjective",
+     "y_mm": 39.16,
+     "height_mm": 5.56,
+     "seq": 31,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [
+      "31. 试述齿轮传动中模数与齿数的关系（第 3 问）。"
+     ],
+     "line_h_mm": 5.56,
+     "seq_label": "",
+     "option_cols": 0,
+     "option_w_mm": 0.0,
+     "option_font_pt": 0.0,
+     "option_row_heights": [],
+     "option_cells": [],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "",
+     "after_seq": 0
+    },
+    {
+     "kind": "blank",
+     "y_mm": 44.72,
+     "height_mm": 40.0,
+     "seq": null,
+     "text": "",
+     "title_lines": [],
+     "stem_lines": [],
+     "line_h_mm": 0.0,
+     "seq_label": "",
+     "option_cols": 0,
+     "option_w_mm": 0.0,
+     "option_font_pt": 0.0,
+     "option_row_heights": [],
+     "option_cells": [],
+     "force_letter": false,
+     "asset_id": null,
+     "image_id": null,
+     "attach_point": "",
+     "x_mm": 0.0,
+     "width_mm": 0.0,
+     "image_h_mm": 0.0,
+     "caption": "",
+     "caption_lines": [],
+     "caption_line_h_mm": 0.0,
+     "missing": false,
+     "blank_id": "b-end",
+     "after_seq": 31
+    }
+   ]
+  }
+ ],
+ "title": "__POC_试卷导出v3__",
+ "subtitle": "满分：112 分"
+}

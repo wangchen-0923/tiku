@@ -1,0 +1,37 @@
+# ══════════════════════════════════════════════════════════════
+#  ★ 上传后请改名为：/opt/zhifou/.dockerignore
+#    （Windows 资源管理器不允许直接建「点开头」的文件，所以这里先不带点）
+#    改名命令：mv dockerignore .dockerignore
+#
+#  作用：构建镜像时**不要**把这些东西塞进镜像。
+#  不配的话，13MB 的开发用 SQLite、本地上传的测试图片、缓存目录
+#  都会被 COPY 进去，白白让镜像变大、构建变慢。
+# ══════════════════════════════════════════════════════════════
+
+.git
+.gitignore
+.venv
+venv
+__pycache__
+*.py[cod]
+
+# ★ 开发用的 SQLite。生产一律用 PostgreSQL，这个文件绝不能进镜像
+server/db.sqlite3.dev-only
+
+# ★ 本地开发时上传的图片/文件。生产的文件存在 zf_media 卷里，
+#   跟着镜像进去只会污染镜像
+server/media/
+server/.zf-storage/
+
+# 缓存与临时产物
+server/.ruff_cache/
+server/.pytest_cache/
+server/staticfiles/
+**/__pycache__/
+
+# 前端与文档（后端镜像不需要）
+web/
+docs/
+artifacts/
+scripts/
+deploy/

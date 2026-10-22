@@ -1,0 +1,163 @@
+[project]
+name = "zhifou-server"
+version = "0.1.0"
+description = "知否 · 题库管理与精准教学平台（后端）"
+requires-python = ">=3.12"
+dependencies = [
+    # ── Web 框架 ──
+    "Django>=5.0,<5.2",
+    "djangorestframework>=3.15",
+    "django-cors-headers>=4.3",
+    "django-filter>=24.2",
+    # ── 数据库 ──
+    "psycopg[binary]>=3.1",          # PostgreSQL 16 驱动
+    "pgvector>=0.2.5",               # 向量检索（知识库召回）
+    # ── 异步任务 ──
+    "celery>=5.3",
+    "redis>=5.0",
+    # ── 认证 ──
+    "PyJWT>=2.8",
+    "argon2-cffi>=23.1",             # 密码哈希
+    # ── 加密 ──
+    "cryptography>=42.0",            # ★ PII 映射表的 AES-GCM 字段级加密（见 02 文档 15.5）
+    # ── 文档生成（答题卡 / 试卷 / 报告）──
+    "reportlab>=4.0",                # ★ 坐标级 PDF（答题卡必需，见 16 文档 4.2）
+    "python-docx>=1.1",              # 试卷 / 作业单 Word
+    "PyMuPDF>=1.24",                 # PDF 解析与渲染
+    "openpyxl>=3.1",                 # Excel 导入导出
+    # ── 图像与 OMR ──
+    "opencv-python-headless>=4.9",   # ★ OMR 全部图像处理（见 16 文档 4.2）
+    "Pillow>=10.0",
+    "numpy>=1.26",
+    # ── OCR（导入扫描件 / 拍照）──
+    # ★ rapidocr-onnxruntime：PaddleOCR 模型的 onnx 版，**模型随 wheel 打包**，
+    #   不用联网下载、不依赖系统组件（tesseract 要另装二进制）。
+    #   ★ 它会拉 onnxruntime 与 opencv-python（约 160MB）——本地 OCR 的代价。
+    "rapidocr-onnxruntime>=1.3",
+    # ── 数据与配置 ──
+    "pandas>=2.2",
+    "PyYAML>=6.0",
+    "python-dateutil>=2.9",
+    # ── 富文本安全 ──
+    # ★ A29-5：富文本（题干/解析/选项）入库前的白名单清洗。
+    #   选 nh3（ammonia 的 Rust 绑定）而不是 bleach：后者已停止维护。
+    #   见 apps/common/sanitize.py 与 scripts/verify_html_sanitize.py。
+    "nh3>=0.2",
+    # ── 可观测性 ──
+    "prometheus-client>=0.20",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-django>=4.8",
+    "pytest-cov>=5.0",
+    "pytest-xdist>=3.5",
+    "ruff>=0.5",
+    "black>=24.4",
+    "mypy>=1.10",
+    "django-stubs>=5.0",
+    "import-linter>=2.0",
+    "factory-boy>=3.3",
+    "freezegun>=1.5",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+# ══════════════════════════════════════════════════════════════
+#  Ruff（lint + format）
+# ══════════════════════════════════════════════════════════════
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+exclude = [
+    ".git", "__pycache__", ".venv", "venv",
+    "*/migrations/*",          # 迁移文件由 Django 生成，不强制风格
+]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "N",    # pep8-naming
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "C4",   # flake8-comprehensions
+    "SIM",  # flake8-simplify
+    "DJ",   # flake8-django
+    "RUF",  # ruff-specific
+]
+ignore = [
+    "E501",   # 行长由 black 处理
+    "B008",   # Django 常见的函数调用默认值
+    "RUF001", # 全角标点（中文项目不可避免）
+    "RUF002",
+    "RUF003",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"*/settings/*.py" = ["F403", "F405"]
+"*/tests/*.py" = ["S101"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["apps", "zhifou"]
+combine-as-imports = true
+
+# ══════════════════════════════════════════════════════════════
+#  Black
+# ══════════════════════════════════════════════════════════════
+[tool.black]
+line-length = 100
+target-version = ["py312"]
+extend-exclude = "/migrations/"
+
+# ══════════════════════════════════════════════════════════════
+#  mypy
+# ══════════════════════════════════════════════════════════════
+[tool.mypy]
+python_version = "3.12"
+plugins = ["mypy_django_plugin.main"]
+ignore_missing_imports = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+no_implicit_optional = true
+strict_equality = true
+exclude = ["migrations/", "tests/"]
+
+[tool.django-stubs]
+django_settings_module = "zhifou.settings.local"
+
+# ══════════════════════════════════════════════════════════════
+#  pytest
+# ══════════════════════════════════════════════════════════════
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "zhifou.settings.local"
+python_files = ["test_*.py", "*_test.py"]
+testpaths = ["apps"]
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+]
+markers = [
+    "unit: 单元测试",
+    "integration: 集成测试（需要数据库）",
+    "slow: 慢测试",
+    "omr: 需要 OpenCV 样本",
+    "ai: 需要模型 API（默认跳过，用 mock provider）",
+]
+
+[tool.coverage.run]
+source = ["apps"]
+omit = ["*/migrations/*", "*/tests/*", "*/settings/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]

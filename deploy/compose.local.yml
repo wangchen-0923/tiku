@@ -1,0 +1,119 @@
+# 知否 · 本地开发环境
+#
+# ★ 端口与现场容器一致（2026-10-18 统一）：
+#     15433 PostgreSQL（本机 5432 被 question-bank-spa 项目占用）
+#     16380 Redis     （本机 6379 被 zhifou_redis_dev 占用）
+#     9100  MinIO     （对象存储，可选）
+#
+# 用法：
+#     docker compose -f deploy/compose.local.yml up -d
+#     docker compose -f deploy/compose.local.yml ps
+#     docker compose -f deploy/compose.local.yml down
+#
+# 项目名固定为 tiku，避免与其他 compose 项目的容器名冲突。
+
+name: tiku
+
+services:
+  # ══════════════════════════════════════════════════════════
+  #  PostgreSQL 16 + pgvector
+  #  ★ pgvector 是知识库三路召回的必需依赖（见 06 文档）
+  # ══════════════════════════════════════════════════════════
+  postgres:
+    image: docker.m.daocloud.io/pgvector/pgvector:pg16
+    container_name: tiku_postgres_15433
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: zhifou
+      POSTGRES_USER: zhifou
+      POSTGRES_PASSWORD: zhifou
+      # 中文排序与大小写处理
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+      TZ: UTC
+    ports:
+      - "15433:5432"
+    volumes:
+      - tiku_pg_data:/var/lib/postgresql/data
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zhifou -d zhifou"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    command:
+      # 开发环境放宽日志，便于排查慢查询
+      - "postgres"
+      - "-c"
+      - "log_min_duration_statement=200"
+      - "-c"
+      - "timezone=UTC"
+
+  # ══════════════════════════════════════════════════════════
+  #  Redis（Celery broker + 结果后端 + 缓存）
+  #  ★ 三个队列共用这一个实例，用 db 隔离：
+  #      db 0 -> Celery broker/result
+  #      db 1 -> Django cache
+  # ══════════════════════════════════════════════════════════
+  redis:
+    image: docker.m.daocloud.io/library/redis:7-alpine
+    container_name: tiku_redis
+    restart: unless-stopped
+    ports:
+      - "16380:6379"
+    volumes:
+      - tiku_redis_data:/data
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ══════════════════════════════════════════════════════════
+  #  MinIO（对象存储，本地模拟 S3）
+  #  ★ 扫描原图与导出包走对象存储，本地开发用 MinIO 贴近生产
+  # ══════════════════════════════════════════════════════════
+  minio:
+    image: docker.m.daocloud.io/minio/minio:latest
+    container_name: tiku_minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: zhifou
+      MINIO_ROOT_PASSWORD: zhifou123
+    ports:
+      - "9100:9000"     # S3 API
+      - "9101:9001"     # 控制台
+    volumes:
+      - tiku_minio_data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 创建默认 bucket（跑完即退出）
+  minio-init:
+    image: docker.m.daocloud.io/minio/mc:latest
+    container_name: tiku_minio_init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 zhifou zhifou123 &&
+      mc mb --ignore-existing local/zhifou-media &&
+      mc anonymous set download local/zhifou-media &&
+      echo 'bucket ready';
+      "
+    restart: "no"
+
+volumes:
+  tiku_pg_data:
+  tiku_redis_data:
+  tiku_minio_data:

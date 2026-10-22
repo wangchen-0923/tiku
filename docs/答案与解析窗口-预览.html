@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>答案与解析窗口 · 版式预览</title>
+<style>
+  :root{
+    --zf-brand:#4D6BFE; --zf-text-primary:#1E232C; --zf-text-secondary:#5A6172;
+    --zf-text-tertiary:#8A90A0; --zf-bg-page:#F7F8FA; --zf-bg-surface:#fff;
+    --zf-bg-subtle:#FAFBFC; --zf-bg-hover:#F2F4F7; --zf-border:#E5E7EB;
+    --zf-border-strong:#D1D5DB; --zf-border-subtle:#F0F1F3; --zf-warning:#E08700;
+    --zf-radius-md:6px; --zf-radius-lg:8px;
+    --zf-text-xs:12px; --zf-text-sm:13px;
+    --zf-font-sans:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;
+    --zf-space-2:8px; --zf-space-3:12px; --zf-space-4:16px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;padding:28px;background:var(--zf-bg-page);color:var(--zf-text-primary);
+       font-family:var(--zf-font-sans);font-size:13px}
+  h1{font-size:15px;font-weight:500;margin:0 0 4px}
+  .note{font-size:12px;color:var(--zf-text-secondary);margin:0 0 20px;line-height:1.7}
+  .row{display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start}
+  .panel{width:340px;background:var(--zf-bg-surface);border:1px solid var(--zf-border);
+         border-radius:var(--zf-radius-lg);overflow:hidden}
+  .panel__head{display:flex;justify-content:space-between;align-items:center;
+               padding:10px 16px;border-bottom:1px solid var(--zf-border);font-size:13px}
+  .dim{color:var(--zf-text-tertiary);font-size:12px}
+  .score{padding:16px;display:flex;flex-direction:column;gap:12px}
+  .cap{font-size:12px;color:var(--zf-text-tertiary);text-align:center;margin-top:8px}
+  .score__stem{border:1px dashed var(--zf-border);border-radius:var(--zf-radius-md);
+               padding:8px 12px;background:var(--zf-bg-subtle)}
+  .score__stem-title{font-size:12px;color:var(--zf-text-secondary);margin-bottom:2px}
+  .score__stem-body{font-size:12px;white-space:pre-wrap;color:var(--zf-text-primary)}
+  .refbox{border:1px solid var(--zf-border);border-radius:var(--zf-radius-md);
+          background:var(--zf-bg-surface);overflow:hidden}
+  .refbox__head{width:100%;display:flex;align-items:center;justify-content:space-between;
+                gap:8px;padding:8px 12px;background:var(--zf-bg-subtle);border:0;
+                cursor:pointer;font:inherit;text-align:left}
+  .refbox__head:hover{background:var(--zf-bg-hover)}
+  .refbox__title{font-size:12px;color:var(--zf-text-secondary)}
+  .refbox__toggle{font-size:12px;color:var(--zf-brand)}
+  .refbox__body{padding:8px 12px 12px;display:grid;gap:12px}
+  .refbox__sec{border-left:2px solid var(--zf-border-strong);padding-left:8px}
+  .refbox__sec--answer{border-left-color:var(--zf-brand)}
+  .refbox__label{font-size:12px;color:var(--zf-text-tertiary);margin-bottom:2px}
+  .refbox__text{font-size:12px;line-height:1.7;white-space:pre-wrap;color:var(--zf-text-primary)}
+  .refbox__text--answer{font-size:13px;font-weight:500}
+  .refbox__empty{font-size:12px;color:var(--zf-text-tertiary)}
+  .refbox__empty--warn{color:var(--zf-warning)}
+</style>
+</head>
+<body>
+  <h1>答案与解析窗口 · 版式预览</h1>
+  <p class="note">
+    这是静态模拟（非真实页面），仅用于确认 340px 右栏内的排版。真实页面在
+    <code>AssignmentReviewView.vue</code>，数据取自接口新增的
+    <code>answer_text</code> / <code>explanation_text</code>。
+  </p>
+
+  <div class="row">
+    <div>
+      <div class="panel">
+        <div class="panel__head"><span>评分</span><span class="dim">未批</span></div>
+        <div class="score">
+          <div class="score__stem">
+            <div class="score__stem-title">题干预览</div>
+            <div class="score__stem-body">碳素结构钢在工程中应用最多，约占钢总产量的______%。</div>
+          </div>
+
+          <div class="refbox">
+            <button class="refbox__head" type="button">
+              <span class="refbox__title">答案与解析</span>
+              <span class="refbox__toggle">收起</span>
+            </button>
+            <div class="refbox__body">
+              <div class="refbox__sec refbox__sec--answer">
+                <div class="refbox__label">参考答案</div>
+                <div class="refbox__text refbox__text--answer">70~80</div>
+              </div>
+              <div class="refbox__sec">
+                <div class="refbox__label">解析</div>
+                <div class="refbox__empty">暂无解析</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="cap">状态 A：有答案、无解析（当前 226 道填空题全部是这种）</div>
+    </div>
+
+    <div>
+      <div class="panel">
+        <div class="panel__head"><span>评分</span><span class="dim">已批 6 分</span></div>
+        <div class="score">
+          <div class="score__stem">
+            <div class="score__stem-title">题干预览</div>
+            <div class="score__stem-body">简述车削加工中切削用量的三要素及其对加工的影响。</div>
+          </div>
+
+          <div class="refbox">
+            <button class="refbox__head" type="button">
+              <span class="refbox__title">答案与解析</span>
+              <span class="refbox__toggle">收起</span>
+            </button>
+            <div class="refbox__body">
+              <div class="refbox__sec refbox__sec--answer">
+                <div class="refbox__label">参考答案</div>
+                <div class="refbox__text refbox__text--answer">切削速度 vc；进给量 f；背吃刀量 ap。提高 vc 可提高生产率但刀具寿命下降；增大 f 使表面粗糙度变差；增大 ap 对刀具寿命影响最小。</div>
+              </div>
+              <div class="refbox__sec">
+                <div class="refbox__label">解析</div>
+                <div class="refbox__text">三要素各自的影响路径不同，评分时按「要素齐全 3 分 + 影响各 1 分」把握。只写名称不写影响最多 3 分。</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="cap">状态 B：答案与解析都有</div>
+    </div>
+
+    <div>
+      <div class="panel">
+        <div class="panel__head"><span>评分</span><span class="dim">未批</span></div>
+        <div class="score">
+          <div class="score__stem">
+            <div class="score__stem-title">题干预览</div>
+            <div class="score__stem-body">解释淬火与回火的区别。</div>
+          </div>
+
+          <div class="refbox">
+            <button class="refbox__head" type="button">
+              <span class="refbox__title">答案与解析</span>
+              <span class="refbox__toggle">收起</span>
+            </button>
+            <div class="refbox__body">
+              <div class="refbox__sec refbox__sec--answer">
+                <div class="refbox__label">参考答案</div>
+                <div class="refbox__empty refbox__empty--warn">题库未录入参考答案，请按评分标准把握</div>
+              </div>
+              <div class="refbox__sec">
+                <div class="refbox__label">解析</div>
+                <div class="refbox__empty">暂无解析</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="cap">状态 C：答案缺失（橙色警示，提示老师自备标准）</div>
+    </div>
+  </div>
+
+<script>
+  document.querySelectorAll('.refbox__head').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var body = btn.parentNode.querySelector('.refbox__body')
+      var toggle = btn.querySelector('.refbox__toggle')
+      var open = body.style.display !== 'none'
+      body.style.display = open ? 'none' : 'grid'
+      toggle.textContent = open ? '展开' : '收起'
+      btn.setAttribute('aria-expanded', String(!open))
+    })
+  })
+</script>
+</body>
+</html>

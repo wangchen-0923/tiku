@@ -1,0 +1,64 @@
+/* ══════════════════════════════════════════════════════════
+   Element Plus 主题覆盖
+   ══════════════════════════════════════════════════════════
+
+   ★★ 为什么用 CSS 变量覆盖而不是 SCSS 变量编译：
+     Element Plus 2.x 把主题暴露成 `--el-*` CSS 变量，直接覆盖
+     即可，不必引入 `element-plus/theme-chalk` 的 SCSS 源并重编译
+     （那会让构建慢一个量级，且每次升级都要重新对齐变量名）。
+
+   ★ 这里**只覆盖有语义的那些**（主色、圆角、文字、边框）。
+     不去动 Element Plus 内部的间距与尺寸——那属于组件自身规范，
+     改了会让它的组件看起来「不整齐」。
+   ══════════════════════════════════════════════════════════ */
+
+:root {
+  /* —— 主色 —— */
+  --el-color-primary: var(--zf-brand);
+  --el-color-primary-light-3: var(--zf-brand-hover);
+  --el-color-primary-light-5: #7B92FF;
+  --el-color-primary-light-7: #A9B7FF;
+  --el-color-primary-light-8: #C3CCFF;
+  --el-color-primary-light-9: var(--zf-brand-subtle);
+  --el-color-primary-dark-2: var(--zf-brand-active);
+
+  /* —— 语义色 —— */
+  --el-color-success: var(--zf-success);
+  --el-color-warning: var(--zf-warning);
+  --el-color-danger: var(--zf-danger);
+  --el-color-error: var(--zf-danger);
+  --el-color-info: var(--zf-text-secondary);
+
+  /* —— 文字 —— */
+  --el-text-color-primary: var(--zf-text-primary);
+  --el-text-color-regular: var(--zf-text-primary);
+  --el-text-color-secondary: var(--zf-text-secondary);
+  --el-text-color-placeholder: var(--zf-text-tertiary);
+  --el-text-color-disabled: var(--zf-text-disabled);
+
+  /* —— 边框与背景 —— */
+  --el-border-color: var(--zf-border);
+  --el-border-color-light: var(--zf-border-subtle);
+  --el-border-color-lighter: var(--zf-border-subtle);
+  --el-border-color-extra-light: var(--zf-border-subtle);
+  --el-border-color-dark: var(--zf-border-strong);
+  --el-border-color-darker: var(--zf-border-strong);
+  --el-bg-color: var(--zf-bg-surface);
+  --el-bg-color-page: var(--zf-bg-page);
+  --el-bg-color-overlay: var(--zf-bg-surface);
+  --el-fill-color-blank: var(--zf-bg-surface);
+
+  /* —— 圆角（后台主力 4px，卡片上限 8px）—— */
+  --el-border-radius-base: var(--zf-radius-sm);
+  --el-border-radius-small: var(--zf-radius-sm);
+  --el-border-radius-round: var(--zf-radius-pill);
+
+  /* —— 字体 —— */
+  --el-font-family: var(--zf-font-sans);
+  --el-font-size-base: var(--zf-text-base);
+
+  /* —— 阴影 —— */
+  --el-box-shadow: var(--zf-shadow-md);
+  --el-box-shadow-light: var(--zf-shadow-sm);
+  --el-box-shadow-lighter: var(--zf-shadow-xs);
+}

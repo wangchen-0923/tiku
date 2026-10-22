@@ -1,0 +1,75 @@
+# ══════════════════════════════════════════════════════════════
+#  知否 · 生产依赖清单（容器镜像用）
+#
+#  来源：server/pyproject.toml 的 [project].dependencies，
+#        并补上部署必需的 gunicorn / boto3，全部加了版本上界。
+#
+#  ★ 为什么加「上界」：不加的话哪天 Django 6 / numpy 3 发布，
+#    重新构建镜像就会装到一个没测过的大版本，半夜炸掉没人知道。
+#    加 < 上界后，构建结果可重复。
+#
+#  ★ 本文件**不含** pytest / ruff / mypy 等开发工具（pyproject 的 dev 组），
+#    生产镜像里装它们只会让镜像更大、攻击面更多。
+#
+#  ★ pip 安装顺序说明：rapidocr-onnxruntime 会顺带拉入 opencv-python，
+#    所以 Dockerfile 里在装完本文件之后，会再单独强制装一次
+#    opencv-python-headless 覆盖 cv2。详见 Dockerfile 注释。
+# ══════════════════════════════════════════════════════════════
+
+# ── Web 框架 ──
+Django>=5.0,<5.2                  # 全站；上界锁在 5.1.x（5.2 未测）
+djangorestframework>=3.15,<3.16   # 所有 /api/v1/ 接口
+django-cors-headers>=4.3,<5.0     # 跨域（前后端分离，前端在 web/dist）
+django-filter>=24.2,<25.0         # DRF 的 DjangoFilterBackend（列表筛选）
+
+# ── 数据库 ──
+psycopg[binary]>=3.1,<4.0         # PostgreSQL 16 驱动。binary 版自带 libpq，
+                                  # 所以 Dockerfile 里**不需要**装 libpq-dev
+pgvector>=0.2.5,<0.4              # 向量类型支持（知识库召回预留）。
+                                  # ★ 纯 Python 包，不要求数据库装 vector 扩展，
+                                  #   当前 84 个迁移里没有 CREATE EXTENSION vector
+
+# ── 异步任务 ──
+celery>=5.3,<6.0                  # worker_io / worker_calc / beat 三个容器
+redis>=5.0,<6.0                   # Celery broker/result 与 Django cache 的客户端
+
+# ── 认证与加密 ──
+PyJWT>=2.8,<3.0                   # apps.accounts 的 JWT 登录
+argon2-cffi>=23.1,<24.0           # 密码哈希（settings 里排第一位的 hasher）
+cryptography>=42.0,<47.0          # ★ PII 映射表 AES-GCM 字段级加密（ZF_PII_KEK）
+
+# ── 文档生成（答题卡 / 试卷 / 报告）──
+reportlab>=4.0,<5.0               # ★ 坐标级 PDF（答题卡必需）
+python-docx>=1.1,<2.0             # 试卷 / 作业单 Word 导出
+PyMuPDF>=1.24,<2.0                # PDF 解析与渲染
+openpyxl>=3.1,<4.0                # Excel 导入导出
+
+# ── 图像与 OMR ──
+opencv-python-headless>=4.9,<5.0  # ★ 无 GUI 版，服务器没有显示器必需 headless。
+                                  #   Dockerfile 中会强制重装一次以覆盖 cv2
+Pillow>=10.0,<12.0                # 图片处理 / ImageField
+numpy>=1.26,<3.0                  # 数值计算（OMR 与统计都依赖）
+
+# ── OCR（导入扫描件 / 拍照识别）──
+# ★ 模型随 wheel 打包，不用联网下载、不装 tesseract 二进制。
+# ★ 代价：会拉入 onnxruntime + opencv-python，约 200MB，首次构建很慢。
+rapidocr-onnxruntime>=1.3,<2.0
+
+# ── 数据与配置 ──
+pandas>=2.2,<3.0                  # 统计报表与批量导入
+PyYAML>=6.0,<7.0                  # 配置解析
+python-dateutil>=2.9,<3.0         # 日期解析
+
+# ── 富文本安全 ──
+nh3>=0.2,<0.4                     # ★ 题干/解析/选项入库前的白名单清洗（Rust 实现）
+
+# ── 可观测性 ──
+prometheus-client>=0.20,<1.0      # /metrics 指标暴露
+
+# ── 部署必需（pyproject 里没有，是运行时才需要的）──
+gunicorn>=22.0,<24.0              # ★ WSGI 服务器。开发环境用 runserver，
+                                  #   生产必须用 gunicorn，compose 的 web 服务依赖它
+boto3>=1.34,<2.0                  # ★ 对象存储。apps/media/storage.py 的 S3Storage
+                                  #   是**按需 import** 的：不装也能正常跑本地存储，
+                                  #   但一旦把 ZF_STORAGE_BACKEND 改成 s3 就会报
+                                  #   「缺少 boto3」。先装上，第二步切对象存储时不用重建镜像

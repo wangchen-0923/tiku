@@ -1,0 +1,30 @@
+# ══════════════════════════════════════════════════════════════
+#  知否 · 本地开发凭据（样例）
+# ══════════════════════════════════════════════════════════════
+#
+#  ★ 复制成 `.devcreds.local` 后填写真实值：
+#
+#        copy scripts\.devcreds.example scripts\.devcreds.local
+#
+#  ★ `.devcreds.local` 已被 .gitignore 忽略，**不会入库**。
+#    这正是重点：仓库是公开的，默认口令不能写在源码里。
+#
+#  ★ 格式：`KEY=VALUE`，一行一项，不要加引号（加了引号引号会变成值的一部分）。
+#    注释用 # 开头。
+#
+#  ★ 环境变量优先级高于本文件，CI 里可以用环境变量注入。
+#
+# ══════════════════════════════════════════════════════════════
+
+# ── 学校平台账户（ORG_ADMIN）──
+# 本地开发库一般由 `manage.py` 的初始化流程建出 admin 账号，
+# 口令问你自己的开发库。★ 生产部署请务必改掉默认值。
+ZF_DEV_ADMIN_USERNAME=admin
+ZF_DEV_ADMIN_PASSWORD=
+
+# ── 系统管理员（PLATFORM_ADMIN，org 为空）──
+# 由迁移 `accounts/0005_three_tier` 创建。那份迁移现在优先读
+# `ZF_SYSADMIN_PASSWORD`，取不到就生成一个随机口令并打印在迁移日志里，
+# 请到日志里找，或自行重置。
+ZF_DEV_SYSADMIN_USERNAME=sysadmin
+ZF_DEV_SYSADMIN_PASSWORD=

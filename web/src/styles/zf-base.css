@@ -1,0 +1,9 @@
+/* ══════════════════════════════════════════════════════════
+   知否 · 全局基础（同样是生成物，来自 11 文档第二节块 5）
+   ══════════════════════════════════════════════════════════ */
+
+/* 全局基础（reset.css 末尾） */
+body { font-family: var(--zf-font-sans); font-size: var(--zf-text-base);
+       line-height: var(--zf-leading-normal); color: var(--zf-text-primary);
+       background: var(--zf-bg-page); }
+.zf-num { font-variant-numeric: tabular-nums; }

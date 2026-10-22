@@ -1,0 +1,153 @@
+/* ══════════════════════════════════════════════════════════════════
+   知否 · 设计令牌（唯一值来源）
+   ══════════════════════════════════════════════════════════════════
+
+   ★★ 本文件是**生成物**，逐字来自 docs/tech/11-前端实现规范与设计令牌.md
+   第二节。文档原文：
+
+     「色值、圆角、间距、阴影、字体、字号、行高、字重、动效曲线
+       一律不得改值、不得删减。」
+
+   ★★ 不要手工编辑本文件。要改变量：
+     1. 改 11 文档第二节（并走评审）
+     2. 跑 node scripts/sync-tokens.mjs
+     3. 跑 node scripts/sync-tokens.mjs --check 确认已同步
+
+   生成命令：node scripts/sync-tokens.mjs
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ============ 知否设计令牌 · 色彩 ============ */
+:root {
+  /* —— 品牌色 —— */
+  --zf-brand:            #4D6BFE;  /* 主品牌蓝，来自 DeepSeek */
+  --zf-brand-hover:      #3F5CE8;
+  --zf-brand-active:     #3550D2;
+  --zf-brand-deep:       #3A65C2;  /* 深蓝，用于标题强调 */
+  --zf-brand-subtle:     #EEF2FF;  /* 极浅蓝底，用于选中行/标签底 */
+  --zf-brand-border:     #C7D2FE;
+
+  /* —— 中性灰阶（层级主要靠它建立）—— */
+  --zf-text-primary:     #1E232C;  /* 正文与标题 */
+  --zf-text-secondary:   #5A6172;  /* 次要说明 */
+  --zf-text-tertiary:    #8A90A0;  /* 占位、辅助 */
+  --zf-text-disabled:    #B9BEC9;
+  --zf-text-inverse:     #FFFFFF;
+
+  --zf-bg-page:          #F7F8FA;  /* 页面底 */
+  --zf-bg-surface:       #FFFFFF;  /* 卡片/表格 */
+  --zf-bg-subtle:        #FAFBFC;  /* 表头、斑马纹 */
+  --zf-bg-hover:         #F2F4F7;
+  --zf-bg-active:        #EEF2FF;
+
+  --zf-border:           #E5E7EB;  /* 主边框 */
+  --zf-border-strong:    #D1D5DB;  /* 输入框 */
+  --zf-border-subtle:    #F0F1F3;  /* 表格行分割 */
+
+  /* —— 语义色（克制度：只用在中低饱和，不用亮原色）—— */
+  --zf-success:          #17A673;
+  --zf-success-bg:       #E8F6F1;
+  --zf-warning:          #E08700;
+  --zf-warning-bg:       #FDF3E2;
+  --zf-danger:           #D9453D;
+  --zf-danger-bg:        #FCEDEC;
+  --zf-info:             #4D6BFE;
+  --zf-info-bg:          #EEF2FF;
+
+  /* —— 学情热力图专用色阶（低饱和，避免"圣诞树"）—— */
+  --zf-mastery-0:        #D9453D;  /* 严重薄弱 0–0.30 */
+  --zf-mastery-1:        #E8794A;  /* 薄弱     0.30–0.50 */
+  --zf-mastery-2:        #E0A030;  /* 不熟练   0.50–0.70 */
+  --zf-mastery-3:        #4D6BFE;  /* 基本掌握 0.70–0.85 */
+  --zf-mastery-4:        #17A673;  /* 已掌握   0.85–1.0 */
+  --zf-mastery-na:       #E5E7EB;  /* 数据不足 */
+}
+
+:root {
+  /* —— 圆角（关键：区分营销页与后台页）—— */
+  --zf-radius-xs:   2px;   /* 标签、徽章 */
+  --zf-radius-sm:   4px;   /* 按钮、输入框、下拉 —— 后台主力 */
+  --zf-radius-md:   6px;   /* 卡片内小面板 */
+  --zf-radius-lg:   8px;   /* 卡片 —— 后台页面上限 */
+  --zf-radius-xl:   12px;  /* 弹窗、抽屉 */
+  --zf-radius-hero: 24px;  /* 仅首页 Hero 与报告封面（营销向） */
+  --zf-radius-pill: 100px; /* 仅胶囊标签与头像 */
+
+  /* —— 间距（8px 基准，不允许 5px/13px 这类随手值）—— */
+  --zf-space-1: 4px;
+  --zf-space-2: 8px;
+  --zf-space-3: 12px;
+  --zf-space-4: 16px;
+  --zf-space-5: 20px;
+  --zf-space-6: 24px;
+  --zf-space-8: 32px;
+  --zf-space-10: 40px;
+  --zf-space-12: 48px;
+
+  /* —— 阴影（克制：后台页面几乎不用阴影，用边框）—— */
+  --zf-shadow-none: none;
+  --zf-shadow-xs: 0 1px 2px rgba(16, 24, 40, 0.04);
+  --zf-shadow-sm: 0 1px 3px rgba(16, 24, 40, 0.06), 0 1px 2px rgba(16, 24, 40, 0.04);
+  --zf-shadow-md: 0 4px 12px rgba(16, 24, 40, 0.08);   /* 弹窗、抽屉 */
+  --zf-shadow-glass: 0 8px 32px rgba(16, 24, 40, 0.06); /* 仅玻璃卡 */
+
+  /* —— 玻璃材质（仅登录页/首页/报告封面）—— */
+  --zf-blur-glass: 12px;
+  --zf-surface-glass: hsla(0, 0%, 100%, 0.30);
+  --zf-surface-glass-raised: hsla(0, 0%, 100%, 0.45);
+  --zf-border-glass: hsla(0, 0%, 100%, 0.20);
+
+  /* —— 字体 —— */
+  --zf-font-sans: "Inter", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
+                  "Source Han Sans SC", "Noto Sans CJK SC", system-ui, sans-serif;
+  --zf-font-mono: "JetBrains Mono", "SF Mono", Consolas, "Courier New", monospace;
+  --zf-font-serif-cn: "Source Han Serif SC", "Songti SC", "SimSun", serif; /* 仅试卷排版 */
+
+  /* —— 字号（后台页面 12–20px 为主，不用 40px+ 大字）—— */
+  --zf-text-xs:   12px;  /* 辅助信息、表头 */
+  --zf-text-sm:   13px;  /* 表格内容、次要按钮 */
+  --zf-text-base: 14px;  /* 正文、表单、按钮 —— 后台默认 */
+  --zf-text-md:   15px;  /* 强调正文 */
+  --zf-text-lg:   16px;  /* 卡片标题 */
+  --zf-text-xl:   18px;  /* 页面区块标题 */
+  --zf-text-2xl:  20px;  /* 页面主标题 */
+  --zf-text-3xl:  24px;  /* 仪表盘大数字 */
+  --zf-text-hero: 46px;  /* 仅首页 Hero 标语（DeepSeek 同规格） */
+
+  --zf-leading-tight:  1.25;
+  --zf-leading-normal: 1.5;
+  --zf-leading-loose:  1.75;
+
+  --zf-weight-normal:   400;
+  --zf-weight-medium:   500;
+  --zf-weight-semibold: 600;
+}
+
+:root {
+  /* 快响应：hover、点击、开关、Tab 切换 —— 绝不能有迟滞感 */
+  --zf-ease-fast:    cubic-bezier(0.4, 0, 0.2, 1);
+  --zf-duration-fast: 120ms;
+
+  /* 标准：展开收起、抽屉、弹窗、提示出现 */
+  --zf-ease-base:    cubic-bezier(0.4, 0, 0.2, 1);
+  --zf-duration-base: 200ms;
+
+  /* 慢入场：页面首次加载、Hero、报告封面 —— 让页面"呼吸" */
+  --zf-ease-slow:    cubic-bezier(0.16, 1, 0.3, 1);  /* easeOutExpo 近似 */
+  --zf-duration-slow: 600ms;
+}
+
+:root {
+  /* 布局（源自设计文档 5.4） */
+  --zf-layout-min-width:      1366px;  /* 教师端最小宽度，低于此宽度侧边栏自动收起 */
+  --zf-layout-content-max:    1440px;  /* 内容区最大宽度，超出居中 */
+  --zf-layout-sidebar:        208px;   /* 侧边栏展开 */
+  --zf-layout-sidebar-collapsed: 56px; /* 侧边栏收起 */
+  --zf-layout-topbar:         56px;    /* 顶部栏高，白底 + 1px 底边框，无阴影 */
+  --zf-layout-table-row:      40px;    /* 表格紧凑模式行高 */
+  --zf-layout-page-padding:   var(--zf-space-6); /* 24px */
+  --zf-layout-breakpoint-mobile: 768px;
+  --zf-layout-design-mobile:  375px;   /* 学生端与扫描端设计基准 */
+  --zf-layout-touch-min:      44px;    /* 移动端最小触控区（14.3） */
+  --zf-layout-shutter:        56px;    /* 手机扫描快门按钮（14.3） */
+  --zf-layout-feedback-text:  16px;    /* 手机端反馈文案最小字号（14.3） */
+}

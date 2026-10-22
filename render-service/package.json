@@ -1,0 +1,22 @@
+{
+  "name": "zhifou-render-service",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "知否 · 试卷渲染服务（排版 JSON + KaTeX SSR → Puppeteer → PDF）",
+  "main": "src/server.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node src/server.js",
+    "health": "node scripts/health.js",
+    "selfcheck": "node scripts/selfcheck.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "katex": "^0.19.0",
+    "puppeteer": "^23.11.1"
+  }
+}
