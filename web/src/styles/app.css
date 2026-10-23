@@ -55,13 +55,30 @@
   color: var(--zf-text-tertiary);
 }
 
+/* ★★ 导航溢出策略（U27 加第 12 个导航项时补）。
+   `.zf-topbar__nav` 原来是 `flex: 1` 但没有溢出处理：
+   项一多就挤，最后几项被右侧「姓名 / 退出」压掉，而且**没有任何提示**。
+   这里给横向滚动而不是换行 —— 换行会让顶栏高度变化，
+   每进一个页面内容整体下跳，比滚动难看得多。
+   ★ `min-width: 0` 是必需的：flex 子项默认 `min-width: auto`，
+   不加它就不会收缩，滚动条永远不出现。 */
 .zf-topbar__nav {
   display: flex;
   gap: var(--zf-space-1);
   flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.zf-topbar__nav::-webkit-scrollbar {
+  display: none;
 }
 
 .zf-navlink {
+  /* ★ 与上面的 `overflow-x` 配套：项不压缩、不折行，整体横向滚 */
+  flex: none;
+  white-space: nowrap;
   padding: var(--zf-space-2) var(--zf-space-3);
   border-radius: var(--zf-radius-sm);
   font-size: var(--zf-text-sm);

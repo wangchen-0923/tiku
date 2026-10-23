@@ -230,6 +230,21 @@ const router = createRouter({
       meta: { title: '答题', bare: true, public: true },
     },
     {
+      // ★★ 积分与凭证（U27）：余额 / 流水 / 自定义 Key。
+      //
+      //   `minLevel` 默认 TEACHER（10）—— 与后端 `IsTeacherAccount` 一致。
+      //   学生不给进：学生没有 AI 调用入口，给他配 Key 只会变成
+      //   「绕过机构计费」的口子。
+      //
+      //   ★ 学校配置（规则/发放/对账/全校账户）是同页的第三块，
+      //     靠 `auth.can('org.settings')` 控制 —— 不在路由层判，
+      //     否则教师连自己的余额页都进不来了。
+      path: '/billing',
+      name: 'Billing',
+      component: () => import('@/views/BillingView.vue'),
+      meta: { title: '积分与凭证' },
+    },
+    {
       // ★ 个人中心（U26）：**所有角色**都能进来。
       //   学生将来也要看自己的积分/凭证，所以这里不设 `minLevel`。
       //   身份条按 `role_label` 显示，不做任何等级判断。

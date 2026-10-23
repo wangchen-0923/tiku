@@ -115,6 +115,15 @@ function handleLogout(): void {
         <RouterLink class="zf-navlink" :to="{ name: 'SheetList' }">
           答题卡
         </RouterLink>
+        <!-- ★ 积分与凭证（U27）：余额、逐笔流水、自定义 API Key。
+             放在导航**最后**：它不是每天用的页面，而是「话费用完了」
+             「要配自己的 Key」时才进来的。
+             ★ 学校平台账户在同一页的第三块里改规则/发放/对账 ——
+             不另开一页，因为「看我的余额」和「发全校的额度」
+             是同一个人读同一份规则。 -->
+        <RouterLink class="zf-navlink" :to="{ name: 'Billing' }">
+          积分与凭证
+        </RouterLink>
         <!-- ★ 公共题审核（U14 题库双轨）：**仅平台管理员**。
              队列里带「来源机构」，机构管理员看到就等于知道同行在交什么，
              所以能力是 `platform.public.review`（L3），不是 `question.public.*`。 -->

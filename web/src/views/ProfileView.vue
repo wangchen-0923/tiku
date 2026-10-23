@@ -439,9 +439,11 @@ onMounted(load)
               <div class="zf-card__body">
                 <div class="pf__tip">
                   积分由学校平台账户按月发放，<b>不结转、不可自助充值</b>。
-                  本页只显示汇总，明细与自定义 Key 管理在
-                  「积分与凭证」页（U27 交付）。两侧数字来自同一个
-                  后端口径，不会不一致。
+                  本页只显示汇总，
+                  <RouterLink class="pf__link" :to="{ name: 'Billing' }">
+                    逐笔流水与自定义 Key 在「积分与凭证」页
+                  </RouterLink>
+                  。两侧数字来自同一个后端口径，不会不一致。
                 </div>
               </div>
             </section>
@@ -515,6 +517,14 @@ onMounted(load)
 }
 .pf__tip--warn {
   color: var(--zf-warning);
+}
+/* 指向「积分与凭证」的入口：只在这一句里出现，所以样式就地定义 */
+.pf__link {
+  color: var(--zf-brand);
+  text-decoration: none;
+}
+.pf__link:hover {
+  text-decoration: underline;
 }
 
 /* ── 资产卡 ── */
