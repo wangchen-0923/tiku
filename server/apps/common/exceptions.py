@@ -108,6 +108,12 @@ class ErrorCode:
     AI_PROVIDER_UNAVAILABLE = "AI.PROVIDER_UNAVAILABLE"
     AI_SCHEMA_INVALID = "AI.SCHEMA_INVALID"
     AI_BUDGET_EXCEEDED = "AI.BUDGET_EXCEEDED"
+    #: ★ 积分余额不足（402）。与 `AI_BUDGET_EXCEEDED` 分开：
+    #:   后者是「机构月度额度用完」，前者是「你这个人的积分不够了」——
+    #:   老师看到的处置动作不同（找管理员充值 vs 省着用/等月初发放）。
+    #:   响应 `extra` 一定带 `{balance, required, unit}`，前端直接显示还差多少。
+    AI_CREDIT_INSUFFICIENT = "AI.CREDIT_INSUFFICIENT"
+
     AI_KB_INSUFFICIENT = "AI.KB_INSUFFICIENT"                    # ★ 非错误
     AI_CITATION_INVALID = "AI.CITATION_INVALID"
 
@@ -186,6 +192,7 @@ ERROR_CODE_HTTP: dict[str, int] = {
     ErrorCode.AI_PROVIDER_UNAVAILABLE: status.HTTP_503_SERVICE_UNAVAILABLE,
     ErrorCode.AI_SCHEMA_INVALID: status.HTTP_502_BAD_GATEWAY,
     ErrorCode.AI_BUDGET_EXCEEDED: status.HTTP_402_PAYMENT_REQUIRED,
+    ErrorCode.AI_CREDIT_INSUFFICIENT: status.HTTP_402_PAYMENT_REQUIRED,
     ErrorCode.AI_KB_INSUFFICIENT: status.HTTP_200_OK,
     ErrorCode.AI_CITATION_INVALID: status.HTTP_502_BAD_GATEWAY,
     # ★ 业务分支：题库不足不是错误，是「要做的事没做完」
@@ -248,6 +255,7 @@ ERROR_CODE_MESSAGE: dict[str, str] = {
     ErrorCode.AI_PROVIDER_UNAVAILABLE: "模型服务暂时不可用",
     ErrorCode.AI_SCHEMA_INVALID: "模型输出格式不符合要求",
     ErrorCode.AI_BUDGET_EXCEEDED: "已超出机构 AI 预算",
+    ErrorCode.AI_CREDIT_INSUFFICIENT: "积分余额不足，本次调用未执行",
     ErrorCode.AI_KB_INSUFFICIENT: "知识库依据不足，已拒绝生成",
     ErrorCode.AI_CITATION_INVALID: "模型引用了不存在的依据",
     ErrorCode.PRACTICE_BANK_INSUFFICIENT:

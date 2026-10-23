@@ -8,7 +8,31 @@ import sys
 sys.path.insert(0, r"D:\tiku\server")
 sys.path.insert(0, r"D:\tiku\.devdeps")
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "zhifou.settings.local")
-os.environ.setdefault("ZF_DB_ENGINE", "sqlite")
+
+#: ★ 默认跑 PG。原来写死 sqlite，而 `db.sqlite3.dev-only` 是一份**空壳副本**：
+#:   它停在旧 schema（缺 `classroom.owner_id` 等列），脚本会直接报
+#:   `no such column`；且它里面的机构数据是冻结的，与真实库不一致。
+#:   `--engine sqlite` 仍保留给「完全没有 PG」的环境。
+_ENGINE = "pg"
+for _i, _a in enumerate(sys.argv):
+    if _a == "--engine" and _i + 1 < len(sys.argv):
+        _ENGINE = sys.argv[_i + 1]
+    elif _a.startswith("--engine="):
+        _ENGINE = _a.split("=", 1)[1]
+
+if _ENGINE == "sqlite":
+    os.environ["ZF_DB_ENGINE"] = "sqlite"
+else:
+    os.environ.pop("ZF_DB_ENGINE", None)
+    os.environ.setdefault("ZF_DB_HOST", "127.0.0.1")
+    os.environ.setdefault("ZF_DB_PORT", "15433")
+    os.environ.setdefault("ZF_DB_NAME", "zhifou")
+    os.environ.setdefault("ZF_DB_USER", "zhifou")
+    os.environ.setdefault("ZF_DB_PASSWORD", "zhifou")
+    # ★ PG 模式下用**自建机构**，不碰「测试学校」——
+    #   `cleanup()` 会删该机构的 `ai_call_log`，误删真实数据是不可逆的。
+    os.environ.setdefault("ZF_VERIFY_ISOLATED_ORG", "1")
+
 os.environ.setdefault("ZF_CACHE", "locmem")
 
 try:
@@ -91,6 +115,8 @@ def check(name: str, ok: bool, detail: str = "") -> None:
 
 
 def main() -> int:
+    if os.environ.get("ZF_VERIFY_ISOLATED_ORG") == "1":
+        return _run_isolated()
     org = Org._base_manager.filter(name="测试学校").first()
     if org is None:
         print("未找到测试机构")
@@ -101,8 +127,43 @@ def main() -> int:
         cleanup(org.id)
 
 
+def _run_isolated() -> int:
+    """PG 模式：自建一个临时机构，跑完连机构一起删掉。
+
+    ★ 为什么必须自建：`cleanup()` 会 `delete()` 该机构的全部 `ai_call_log`。
+      在开发库上对着「测试学校」跑一次，就把那边的历史调用记录清空了。
+    """
+    from apps.org.models import OrgType
+
+    org = Org._base_manager.create(
+        name="ZFTEST 编排器自检", short_name="ZFTESTO", type=OrgType.SCHOOL,
+    )
+    try:
+        return _run(org.id)
+    finally:
+        cleanup(org.id)
+        # ★ 用 `QuerySet.delete()` 而不是 `org.delete()`：
+        #   后者走 `SoftDeleteModel.delete()`，只打 `deleted_at` 标记，
+        #   测试机构会一行行堆在库里（`_base_manager` 仍数得到）。
+        #   `QuerySet.delete()` 是 SQL 直删，不经过模型层的软删覆盖。
+        Org._base_manager.filter(pk=org.id).delete()
+        print("  （已删除自建测试机构）")
+
+
 def cleanup(org_id: int) -> None:
     AICallLog._base_manager.filter(org_id=org_id).delete()
+    # ★ 顺序很重要：`CreditAccount.user` 是 `PROTECT`，
+    #   「有账本的账号不能被物理删」——这个约束是对的，但它要求
+    #   **先清账本三张表，再删用户**。反过来会 ProtectedError。
+    #   账本 `Model.delete()` 会抛错（append-only），必须走 `_base_manager`。
+    try:
+        from apps.billing.models import CreditAccount, CreditHold, CreditLedger
+
+        CreditLedger._base_manager.filter(org_id=org_id).delete()
+        CreditHold._base_manager.filter(org_id=org_id).delete()
+        CreditAccount._base_manager.filter(org_id=org_id).delete()
+    except Exception:      # noqa: BLE001
+        pass
     for u in User._base_manager.filter(username__startswith="test_ai_"):
         User._base_manager.filter(pk=u.pk).delete()
     cache.clear()
@@ -115,12 +176,35 @@ def _payload(dirty=None):
     )
 
 
+def _fund_teacher(org_id: int, user_id: int, credits: str = "100000") -> None:
+    """给自检账号发积分，避免被计费闸门拦下。
+
+    ★ 只用于验收脚本。生产环境的额度只能走 `grant_credits` 命令
+      或学校平台账户在「积分设置」里配，不在这里。
+    """
+    from decimal import Decimal
+
+    from apps.billing import services as billing
+
+    billing.ensure_account(org_id, user_id)
+    billing.adjust(
+        org_id=org_id, user_id=user_id, delta=Decimal(credits),
+        remark="verify_ai_orchestrator 自检发放",
+        idempotency_key=f"verify_orch:{org_id}:{user_id}",
+    )
+
+
 def _run(org_id: int) -> int:
     cleanup(org_id)
     cache.clear()
 
     teacher = User.objects.create(
         username="test_ai_t", real_name="老师", org_id=org_id, role="TEACHER")
+
+    # ★ U23 之后每次 AI 调用都要预扣积分：余额为 0 时会在**调厂商之前**
+    #   被 402 拦下，本脚本会以 `CreditInsufficient` 中断。
+    #   这里发足额，让脚本继续只测「编排」这一层，不被计费干扰。
+    _fund_teacher(org_id, teacher.id)
 
     # ══════════════ O1 provider 与出站脱敏强制 ══════════════
     print("\n【O1】provider 接口与脱敏强制")

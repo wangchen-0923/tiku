@@ -295,7 +295,12 @@ class AICallLog(models.Model):
     input_tokens = models.IntegerField(_("输入 token"), null=True, blank=True)
     output_tokens = models.IntegerField(_("输出 token"), null=True, blank=True)
     cost_yuan = models.DecimalField(
-        _("成本(元)"), max_digits=10, decimal_places=4, null=True, blank=True
+        _("成本(元)"), max_digits=12, decimal_places=6, null=True, blank=True,
+        help_text=_(
+            "★ 6 位小数，不是 4 位。4 位时一次便宜模型的调用"
+            "（约 0.000026 元）会被截断成 0，成本报表长期低估，"
+            "且与积分账本（4 位积分 = 更细的元）对账永远差一点。"
+        ),
     )
     latency_ms = models.IntegerField(_("耗时(ms)"), null=True, blank=True)
 

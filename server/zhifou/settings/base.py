@@ -57,6 +57,10 @@ LOCAL_APPS = [
     "apps.questionbank",
     "apps.ingest",
     "apps.ai",
+    # ★ 计费（积分账户/流水/三段式）：独立 app 而不是塞进 `ai`。
+    #   理由：账本是审计对象，生命周期比"AI 调用"长得多——
+    #   将来非 AI 的计费项（如导出、扫描）也要落这张账本。
+    "apps.billing",
     "apps.paper",
     "apps.sheet",
     "apps.assignment",

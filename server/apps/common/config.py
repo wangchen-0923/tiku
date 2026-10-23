@@ -162,6 +162,24 @@ DEFAULTS: dict[str, Any] = {
     # 检索（06 文档 7.2）
     "ai.kb_top_k": 6,
     "ai.kb_min_hits_for_generate": 1,
+    # ── 积分计费（M5 · U22）──
+    #
+    # ★★ 单价与月配额都是**学校平台管理员可配**的（落在 `org.ai_config`
+    #   的同名字段），这里的值只是「学校没配时的平台兜底」。
+    #   取数一律经 `get_config(key, org=org)`，不要直接读 DEFAULTS。
+    #
+    # ★ 单价用**字符串**默认值而不是 0.01：
+    #   `get_config` 的 `_cast` 会按默认值类型转环境变量，
+    #   字符串原样返回；消费端统一走 `Decimal(str(v))`，不会引入 float 误差。
+    #   写成 float 的话，环境变量 `ZF_AI_CREDIT_YUAN_PER_POINT=0.0083`
+    #   会先被转成二进制浮点再转 Decimal，末位就可能不精确。
+    "ai.credit_yuan_per_point": "0.01",
+    "ai.credit_monthly_quota_teacher": 500,
+    "ai.credit_monthly_quota_org_admin": 3000,
+    # 余额低于此值时前端提示「额度将尽」（不阻断调用）
+    "ai.credit_low_balance_threshold": 50,
+    # 预扣单超时未结算即视为异常，供日对账列出（不自动扣款）
+    "ai.credit_hold_stale_minutes": 60,
     # ── 导入与切题（07 文档 3）──
     "ingest.level1_min_matches": 3,
     "ingest.line_gap_factor": 1.5,

@@ -50,6 +50,13 @@ class AuditAction(models.TextChoices):
     DATA_EXPORT = "data.export", "导出数据"
     USER_LOGIN = "user.login", "登录"
     USER_PERMISSION_CHANGE = "user.permission_change", "权限变更"
+    # ★ 计费（U22）：三件事都必须留痕，因为都直接动钱
+    #   ① 改积分规则（单价/月配额）影响全机构的扣费口径
+    #   ② 人工调账等于凭空增减余额
+    #   ③ 发放月配额是批量建钱，出错会双发
+    CREDIT_SETTINGS_CHANGE = "credit.settings_change", "修改积分规则"
+    CREDIT_ADJUST = "credit.adjust", "积分调账"
+    CREDIT_GRANT = "credit.grant", "发放月配额"
 
 
 class AuditLog(models.Model):

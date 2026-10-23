@@ -34,6 +34,8 @@ api_v1 = [
     path("questions/", include("apps.questionbank.urls")),
     path("ingest/", include("apps.ingest.urls")),
     path("ai/", include("apps.ai.urls")),
+    # ★ 计费（积分）：`/api/v1/billing/account/` = 我的余额与流水
+    path("billing/", include("apps.billing.urls")),
     path("papers/", include("apps.paper.urls")),
     path("sheet/", include("apps.sheet.urls")),
     path("assignments/", include("apps.assignment.urls")),

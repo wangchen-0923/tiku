@@ -83,11 +83,21 @@ class CallContext:
     request_id: str = ""
     #: 系统提示词（由提示词模板中心提供；为空时用一个安全的最小值）
     system_prompt: str = ""
+    #: ★ 本次实际使用的模板版本（写 `ai_call_log.prompt_version`）。
+    #:   为空表示**没取到模板、走了回退提示词**——这类调用事后无法复现，
+    #:   所以必须落库为 NULL 而不是 0 或 1。
+    prompt_version: int | None = None
     #: 已注入的知识库条目 id（写 `ai_call_log.kb_entry_ids`）
     kb_entry_ids: list[int] = field(default_factory=list)
     #: 本地映射（token → 明文），**只留在内存**，用于还原
     mapping: dict[str, str] = field(default_factory=dict)
     field_names: dict[str, str] = field(default_factory=dict)
+    #: ★ 本次调用用的是**用户自带的 API Key**（U24）。
+    #:   自带 Key 不扣积分：预扣额为 0，结算也不写扣减流水。
+    uses_own_key: bool = False
+    #: 解析出的自带凭据（`apps.billing.credentials.ResolvedCredential`）。
+    #: ★ 含明文 Key，**只在内存**，不进日志、不进 `ai_call_log`。
+    credential: Any = None
 
     @property
     def org(self):
@@ -184,7 +194,7 @@ class AIOrchestrator:
 
         idem = normalize_idem_key(req)
         if idem is None:
-            return cls._invoke_once(req, ctx)
+            return cls._invoke_billed(req, ctx)
 
         done_key = f"{idem}:done"
         cached = cache.get(done_key)
@@ -213,7 +223,7 @@ class AIOrchestrator:
                 f"同一幂等键的调用正在进行中：{req.idempotency_key}"
             )
         try:
-            result = cls._invoke_once(req, ctx)
+            result = cls._invoke_billed(req, ctx)
             if result.status == STATUS_SUCCESS:
                 cache.set(
                     done_key,
@@ -223,6 +233,181 @@ class AIOrchestrator:
             return result
         finally:
             cache.delete(lock_key)
+
+    # ── 计费包裹（U23）──
+    @classmethod
+    def _invoke_billed(cls, req: AIRequest, ctx: CallContext) -> AIResult:
+        """预扣 → 调用 → 结算 / 回滚。
+
+        ★★ 三条顺序不能调：
+
+          ① **余额不足必须在调用厂商之前拦下**。先调再扣，等于白花钱；
+             而且此时已经产生上游费用，退款逻辑再对也补不回成本。
+          ② **失败要回滚，不是结算 0**。回滚单（`REFUNDED`）与结算 0 的
+             语义不同：前者说明「这次没成」，后者会被统计成「一次成功且免费」。
+          ③ 结算失败**不让调用失败**。结果已经拿到，丢弃它是更大的损失；
+             但必须记日志，因为账本会出现未结算单（对账会报 stale）。
+
+        ★ 无 `teacher_id`（系统级调用）或机构不存在时**不计费**：
+          没有主体就没有账户，硬扣会扣到机构池上，事后无法归因。
+        """
+        if not ctx.teacher_id or not ctx.org_id:
+            return cls._invoke_once(req, ctx)
+
+        from apps.billing import credentials as creds
+        from apps.billing import services as billing
+        from apps.billing.models import HoldStatus
+        from apps.billing.pricing import credits_to_yuan, yuan_to_credits
+
+        org = cls._load_org(ctx.org_id)
+        if org is None:
+            return cls._invoke_once(req, ctx)
+
+        est_in, est_out = cls._estimate_tokens(req)
+
+        # ── ① 先选路（不带预算），再按该路由的厂商解析自带 Key ──
+        #
+        # ★★ 顺序是刻意的：不能先用「有没有任何 Key」决定不扣分。
+        #   用户可能只配了 openai_compat 的 Key，而这条任务路由到 echo，
+        #   此时实际用的是**平台凭据**——若按「有 Key」就不扣分，等于漏计费。
+        #   所以必须先用选定路由的 provider 去精确匹配。
+        try:
+            decision = pick_route(
+                req.task, org=org,
+                est_input_tokens=est_in, est_output_tokens=est_out,
+            )
+        except RuntimeError as exc:
+            return cls._log(req, ctx, AIResult(
+                status=STATUS_FAILED, error_message=str(exc),
+            ))
+
+        # ── ② 解析自带 Key（个人 > 机构）──
+        if ctx.credential is None:
+            try:
+                ctx.credential = creds.resolve(
+                    org_id=ctx.org_id, user_id=ctx.teacher_id,
+                    provider=decision.route.provider,
+                )
+            except Exception:      # noqa: BLE001
+                logger.exception("解析自带 Key 失败，本次走平台凭据")
+        if ctx.credential is not None:
+            ctx.uses_own_key = True
+
+        # ── ③ 余额作为路由预算：不够贵模型时降级，完全不够就 402 ──
+        if not ctx.uses_own_key:
+            try:
+                acct = billing.ensure_account(ctx.org_id, ctx.teacher_id)
+                balance_yuan = float(credits_to_yuan(acct.balance, org=org))
+            except Exception:      # noqa: BLE001
+                logger.exception("读取积分余额失败，本次不做预算降级")
+                balance_yuan = None
+
+            if balance_yuan is not None:
+                need = decision.route.estimate_cost(
+                    est_input_tokens=est_in, est_output_tokens=est_out
+                )
+                if need > balance_yuan:
+                    try:
+                        decision = pick_route(
+                            req.task, org=org, budget_left_yuan=balance_yuan,
+                            est_input_tokens=est_in, est_output_tokens=est_out,
+                        )
+                        logger.info(
+                            "余额不足当前模型，已降级 task=%s → %s:%s",
+                            req.task, decision.route.provider, decision.route.model,
+                        )
+                    except RuntimeError as exc:
+                        # ★ 所有候选都买不起 → 明确 402，而不是 FAILED。
+                        #   FAILED 会让人以为「模型挂了」，实际是「没钱了」。
+                        raise billing.CreditInsufficient(
+                            balance=acct.balance,
+                            required=yuan_to_credits(need, org=org),
+                        ) from exc
+
+        # ── ④ 预扣 ──
+        est_cost = decision.route.estimate_cost(
+            est_input_tokens=est_in, est_output_tokens=est_out
+        )
+        hold_key = cls._billing_key(req, decision)
+        hold = billing.hold(
+            org_id=ctx.org_id, user_id=ctx.teacher_id,
+            idempotency_key=hold_key, scene=req.task,
+            est_cost_yuan=est_cost, uses_own_key=ctx.uses_own_key,
+        )
+
+        # ── ⑤ 调用 ──
+        try:
+            result = cls._invoke_once(req, ctx, decision=decision)
+        except Exception:
+            try:
+                billing.refund(
+                    org_id=ctx.org_id, hold_id=hold.id, reason="调用抛异常",
+                )
+            except Exception:      # noqa: BLE001
+                logger.exception("回滚预扣失败 hold=%s（对账会报 stale）", hold.id)
+            raise
+
+        # ── ⑥ 结算 / 回滚 ──
+        try:
+            if result.ok:
+                billing.settle(
+                    org_id=ctx.org_id, hold_id=hold.id,
+                    actual_cost_yuan=result.cost_yuan,
+                    ai_call_log_id=result.call_log_id,
+                )
+            elif hold.status == HoldStatus.HOLDING:
+                billing.refund(
+                    org_id=ctx.org_id, hold_id=hold.id,
+                    reason=f"调用未成功：{result.status}",
+                )
+        except Exception:          # noqa: BLE001
+            logger.exception(
+                "结算/回滚积分失败 hold=%s status=%s —— 结果已返回，"
+                "账本会留下 HOLDING 单，需人工对账",
+                hold.id, result.status,
+            )
+        return result
+
+    @staticmethod
+    def _load_org(org_id: int):
+        from apps.org.models import Org
+
+        return Org.objects.filter(pk=org_id).first()
+
+    @staticmethod
+    def _estimate_tokens(req: AIRequest) -> tuple[int, int]:
+        """粗略估算 token，用于预扣与预算降级。
+
+        ★ 宁可**多估**：预扣多了结算会退回，预扣少了一旦余额不够，
+          结算就只能在「透支」和「账本对不上」之间二选一。
+        ★ 图片按 800 token/张：视觉模型的分块计价差异很大，
+          这个数只用来判断「够不够钱」，不用于计费（计费用真实 usage）。
+        """
+        try:
+            body = json.dumps(
+                req.payload.data, ensure_ascii=False, default=str
+            )
+        except Exception:          # noqa: BLE001
+            body = ""
+        # 中文约 1 token/字、英文约 4 字符/token，按 1.5 字符/token 折中
+        est_in = max(1, int(len(body) / 1.5)) + 800 * len(req.payload.images)
+        est_out = int(req.options.get("max_tokens") or 1200)
+        return est_in, est_out
+
+    @staticmethod
+    def _billing_key(req: AIRequest, decision) -> str:
+        """计费幂等键。
+
+        ★ 有业务幂等键就用它（同一请求重试不会重复扣分）；
+          没有时退化为随机键——**这不是"防重失效"**，而是：没有业务幂等键
+          的调用本来就无法判定"是否同一请求"，与其错误地合并，不如如实各算一次，
+          账本至少是真的。
+        """
+        if req.idempotency_key:
+            return req.idempotency_key
+        import uuid
+
+        return f"auto:{req.task}:{uuid.uuid4().hex}"
 
     # ── 出站校验 ──
     @staticmethod
@@ -247,7 +432,9 @@ class AIOrchestrator:
 
     # ── 单次调用（含重试与降级）──
     @classmethod
-    def _invoke_once(cls, req: AIRequest, ctx: CallContext) -> AIResult:
+    def _invoke_once(
+        cls, req: AIRequest, ctx: CallContext, *, decision=None
+    ) -> AIResult:
         t_start = time.monotonic()
 
         # ── ① 限流 ──
@@ -264,16 +451,18 @@ class AIOrchestrator:
             )
 
         # ── ② 路由 ──
-        try:
-            decision = pick_route(req.task, org=ctx.org)
-        except RuntimeError as exc:
-            return cls._log(
-                req, ctx, AIResult(status=STATUS_FAILED,
-                                   error_message=str(exc)),
-            )
+        # ★ 计费路径上路由已由 `_invoke_billed` 选过（它需要先拿到候选才能
+        #   估成本做预扣），这里直接复用，避免同一请求选两次路。
+        if decision is None:
+            try:
+                decision = pick_route(req.task, org=ctx.org)
+            except RuntimeError as exc:
+                return cls._log(
+                    req, ctx, AIResult(status=STATUS_FAILED,
+                                       error_message=str(exc)),
+                )
 
-        system_prompt = ctx.system_prompt or cls._default_system_prompt(req)
-        user_prompt = cls._build_user_prompt(req)
+        system_prompt, user_prompt = cls._build_prompts(req, ctx)
 
         # ── ③ 调用（按失败类型分类重试）──
         max_retry = int(get_config("ai.max_retry"))
@@ -293,6 +482,12 @@ class AIOrchestrator:
                 )
             try:
                 provider = get_provider(decision.route.provider)
+                # ★ 自带 Key：返回一个**新实例**，绝不动共享单例
+                cred = getattr(ctx, "credential", None)
+                if cred is not None and hasattr(provider, "with_credentials"):
+                    provider = provider.with_credentials(
+                        api_key=cred.api_key, base_url=cred.base_url,
+                    )
                 resp = provider.invoke(
                     payload=req.payload,
                     model=decision.route.model,
@@ -428,6 +623,10 @@ class AIOrchestrator:
                 provider=result.provider or "-",
                 model=result.model or "-",
                 prompt_template_key=req.prompt_template_key or "",
+                # ★ 记下**实际用到的版本**，不是模板表里最新的版本。
+                #   两者可能不同：机构模板优先、旧版本可能仍被钉住。
+                #   为空 = 这次走了回退提示词，事后无法复现。
+                prompt_version=ctx.prompt_version,
                 idempotency_key=req.idempotency_key or "",
                 request_payload=req.payload.data,
                 request_images=list(req.payload.images or []),
@@ -456,6 +655,51 @@ class AIOrchestrator:
         return result
 
     # ── 提示词拼装 ──
+    @classmethod
+    def _build_prompts(cls, req: AIRequest, ctx: CallContext) -> tuple[str, str]:
+        """取本次调用的 (system_prompt, user_prompt)。
+
+        优先顺序：
+
+          1. `ctx.system_prompt` 非空 → 调用方显式指定，直接尊重
+             （测试与特殊场景用；**不要**在业务代码里图省事这么用，
+             它绕过了模板中心的版本管理）。
+          2. `ai_prompt_template` 里有 ACTIVE 模板 → 用它并记下版本。
+          3. 都没有 → 回退最小提示词，`prompt_version` 记 NULL。
+
+        ★ 回退不是错误（新库、新机构、模板还没配），
+          但**必须留痕**：这类调用的输出质量与配了模板的不是一回事，
+          事后按 `prompt_version IS NULL` 就能把它们挑出来。
+        """
+        if ctx.system_prompt:
+            return ctx.system_prompt, cls._build_user_prompt(req)
+
+        try:
+            from apps.ai import prompts as prompt_center
+
+            rendered = prompt_center.render_for_request(
+                req, org_id=ctx.org_id
+            )
+        except Exception:      # noqa: BLE001
+            # ★ 模板中心自己出问题，不能让业务链路 500。
+            #   回退到最小提示词，把异常记下来。
+            logger.exception(
+                "加载提示词模板失败 key=%s task=%s，本次回退",
+                req.prompt_template_key, req.task,
+            )
+            rendered = None
+
+        if rendered is None or not rendered.ok:
+            ctx.prompt_version = None
+            logger.warning(
+                "未取到提示词模板 key=%s task=%s org=%s，回退最小提示词",
+                req.prompt_template_key, req.task, ctx.org_id,
+            )
+            return cls._default_system_prompt(req), cls._build_user_prompt(req)
+
+        ctx.prompt_version = rendered.version
+        return rendered.system_prompt, rendered.user_prompt
+
     @staticmethod
     def _default_system_prompt(req: AIRequest) -> str:
         """没有模板时的最小系统提示词。
@@ -559,6 +803,7 @@ def invoke(
     business_id: int | None = None,
     mapping: dict[str, str] | None = None,
     field_names: dict[str, str] | None = None,
+    uses_own_key: bool = False,
 ) -> AIResult:
     """便捷入口：组装 `AIRequest` 与 `CallContext` 后调用编排器。
 
@@ -583,6 +828,7 @@ def invoke(
         kb_entry_ids=list(kb_entry_ids or []),
         mapping=dict(mapping or {}),
         field_names=dict(field_names or {}),
+        uses_own_key=uses_own_key,
     )
     if task in ("generate_question", "kb_cite"):
         return AIOrchestrator.invoke_with_kb_gate(req, ctx=ctx)

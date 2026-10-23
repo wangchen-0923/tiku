@@ -201,6 +201,29 @@ class OpenAICompatProvider(AIProvider):
             **kw,
         )
 
+    def with_credentials(
+        self, *, api_key: str, base_url: str = ""
+    ) -> "OpenAICompatProvider":
+        """返回一个**带指定凭据的新实例**（U24 自定义 API Key）。
+
+        ★★ 绝不能原地改 `self.api_key`：
+
+          注册表里放的是**共享单例**。原地改意味着「A 老师刚设的个人 Key
+          会被 B 老师下一次调用覆盖」——并发下两个请求甚至会互相串用 Key。
+          这类事故在日志里表现为「陌生人用自己的额度调我的模型」，
+          极难排查。
+
+          代价是每次调用多构造一个轻对象，可忽略。
+        """
+        return type(self)(
+            base_url=(base_url or self.base_url),
+            api_key=api_key,
+            transport=self._transport,
+            extra_headers=self.extra_headers,
+            chat_path=self.chat_path,
+            default_model=self.default_model,
+        )
+
     # ── URL ──────────────────────────────────────────────
 
     def _url(self) -> str:

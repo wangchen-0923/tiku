@@ -48,6 +48,20 @@ $py="C:\Users\Administrator\.dsh\dsh-runtimes\dsh-primary-runtime\dependencies\p
 powershell -ExecutionPolicy Bypass -Command ". .\deploy\use-postgres.ps1; cd server; & $py manage.py migrate"
 ```
 
+Git Bash / CI 下的等价写法（**每次开新终端都要带**）：
+
+```bash
+export ZF_DB_PORT=15433 ZF_DB_PASSWORD=zhifou
+export PYTHONPATH="D:/tiku/.devdeps;D:/tiku/server"
+```
+
+> ★★ **漏掉 `ZF_DB_PORT` 时的报错极具误导性**：
+> `base.py` 的缺省端口是 **5432**（生产容器内部端口），于是 PG 回的是
+> `FATAL: password authentication failed for user "zhifou"`。
+> 看起来是「密码配错了」，实际是**连错了端口**——真机上 5432 上没有这个库。
+> 遇到这个报错先核对端口，不要先去改密码。
+> （2026-10-23 实际踩过一次，排查了半小时。）
+
 ## 3. 迁移 + 启动
 
 ```powershell
@@ -134,3 +148,47 @@ set ZF_RENDER_TOKEN=%RENDER_TOKEN%
 
 ★ **必须与 U36（部署验收）合并验收**：真导一份含公式的卷子，
 目视确认公式可缩放、中文不是方框、分页与前端预览一致。
+
+---
+
+## 7. 自定义 API Key 的加密密钥（`ZF_SECRET_KEK`）
+
+用户在「积分与凭证」页自己填的 API Key，落库前用 AES-256-GCM 加密，密钥来自
+`ZF_SECRET_KEK`。
+
+```bash
+# 生成（32 字节随机，base64）—— 只需生成一次
+python -c "import os,base64;print(base64.b64encode(os.urandom(32)).decode())"
+```
+
+| 环境变量 | 默认 | 说明 |
+| --- | --- | --- |
+| `ZF_SECRET_KEK` | 空（回退 `SECRET_KEY` 派生） | base64 的 32 字节密钥 |
+
+### ★★ 四条纪律（比配置本身重要）
+
+1. **不能放代码库、不能放数据库、不能写进任何 `.env` 模板文件。**
+   仓库是 public 的，放一次就永久留在 git 历史里。
+2. **上线后不能更换。** 换了之后所有用户已保存的 Key 全部解不开，
+   而且**没有补救办法**——GCM 没有"用旧密钥再解一次"的可能。
+   用户只能重新填一遍。
+3. **必须有独立备份。** 与数据库备份分开存：数据库备份能恢复密文，
+   但没有 KEK 就永远解不开。建议放团队密码管理器（1Password / Bitwarden）
+   的运维条目，条目名建议 `zhifou/PROD/ZF_SECRET_KEK`。
+   **本条只记录"放在哪"，密钥值本身不进任何文档。**
+4. **与 `ZF_PII_KEK` 分开。** 后者保护学生个人信息、理论上需定期轮换；
+   前者保护用户 Key、几乎不可能轮换。混用一把密钥的后果是：
+   为了轮换 PII 密钥，把所有用户的 API Key 一起弄废。
+
+### 怎么确认线上配对了
+
+登录后调 `GET /api/v1/billing/keys/`，响应里的 `data.kek_source`：
+
+| 值 | 含义 |
+| --- | --- |
+| `env` | 已显式配置 `ZF_SECRET_KEK` ✅ |
+| `derived` | **未配置**，正在用 `SECRET_KEY` 派生 ⚠️ 生产环境必须修 |
+
+`derived` 在开发环境可用（重启后 `SECRET_KEY` 不变就能解开），
+但生产环境一旦轮换 `SECRET_KEY`（例如重新部署时未固定），
+所有已保存的 Key 立刻失效。
