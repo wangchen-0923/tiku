@@ -25,6 +25,7 @@ from apps.accounts.serializers import (
     MeSerializer,
     RefreshSerializer,
     ResetPasswordSerializer,
+    SelfProfileUpdateSerializer,
     TransferAssetsSerializer,
     UserCreateSerializer,
     UserSerializer,
@@ -102,7 +103,7 @@ class RefreshView(APIView):
 
 
 class MeView(APIView):
-    """`GET /api/v1/auth/me/` 当前用户。"""
+    """`GET/PATCH /api/v1/auth/me/` 当前用户。"""
 
     permission_classes = [IsAuthenticated]
 
@@ -112,6 +113,43 @@ class MeView(APIView):
             raise ZfError(ErrorCode.AUTH_TOKEN_EXPIRED,
                           detail="账号不存在，请重新登录")
         return ok(MeSerializer(u).data)
+
+    def patch(self, request: Request) -> Response:
+        """改自己的资料（姓名 / 手机号）。
+
+        ★ 只接受 `SelfProfileUpdateSerializer` 声明的两个字段。
+          序列化器本身就是白名单：`role` / `username` 传了也不生效。
+        """
+        from apps.accounts import profile as profile_service
+
+        s = SelfProfileUpdateSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        u = profile_service.update_self(
+            request.user,
+            real_name=s.validated_data.get("real_name"),
+            phone=s.validated_data.get("phone"),
+        )
+        return ok(MeSerializer(u).data, message="资料已更新")
+
+
+class ProfileView(APIView):
+    """`GET /api/v1/accounts/profile/` 个人中心聚合（U26）。
+
+    ★ 一次返回三块：资料 / 安全 / 我的资产。
+      分成三个接口会让前端并发三次、并且各自处理各自的失败态，
+      而这三块在页面上是同一屏——一次拿全，降级逻辑只在后端写一遍。
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request: Request) -> Response:
+        from apps.accounts import profile as profile_service
+
+        u = UserSelector.me(request.user.id)
+        if u is None:
+            raise ZfError(ErrorCode.AUTH_TOKEN_EXPIRED,
+                          detail="账号不存在，请重新登录")
+        return ok(profile_service.build_profile(u))
 
 
 class ChangePasswordView(APIView):

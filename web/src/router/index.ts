@@ -230,6 +230,15 @@ const router = createRouter({
       meta: { title: '答题', bare: true, public: true },
     },
     {
+      // ★ 个人中心（U26）：**所有角色**都能进来。
+      //   学生将来也要看自己的积分/凭证，所以这里不设 `minLevel`。
+      //   身份条按 `role_label` 显示，不做任何等级判断。
+      path: '/profile',
+      name: 'Profile',
+      component: () => import('@/views/ProfileView.vue'),
+      meta: { title: '个人中心' },
+    },
+    {
       path: '/forbidden',
       name: 'Forbidden',
       component: () => import('@/views/ForbiddenView.vue'),

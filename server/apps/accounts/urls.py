@@ -16,6 +16,7 @@ from apps.accounts.views import (
     ChangePasswordView,
     LoginView,
     MeView,
+    ProfileView,
     RefreshView,
     UserDetailView,
     UserDisableView,
@@ -38,6 +39,9 @@ auth_urlpatterns: list = [
 urlpatterns: list = [
     # 认证接口（`app_name` 内可用 `accounts:login` 反查）
     *auth_urlpatterns,
+    # ── 个人中心（U26）──
+    # ★ 静态段必须排在 `users/<int:pk>/` 之前
+    path("profile/", ProfileView.as_view(), name="profile"),
     # ── 用户管理 ──
     path("users/", UserListCreateView.as_view(), name="users"),
     path("users/<int:pk>/", UserDetailView.as_view(), name="user-detail"),

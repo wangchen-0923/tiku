@@ -134,10 +134,16 @@ function handleLogout(): void {
                重复时只显示一次。
                注意：Vue 模板的注释语法是 HTML 注释，不是 Django 的
                花括号井号语法。用后者会把注释**原样渲染到页面上**。 -->
-          <span class="zf-muted" style="font-size: var(--zf-text-sm)">
+          <!-- ★ 姓名现在是**个人中心入口**（U26）：改密码、看积分都在那里。
+               原来它只是一段纯文本，用户找不到「我在哪儿改密码」。 -->
+          <RouterLink
+            class="zf-navlink zf-topbar__me"
+            :to="{ name: 'Profile' }"
+            :title="'个人中心'"
+          >
             {{ auth.user?.real_name || auth.user?.username }}
             <span v-if="showRole" class="zf-dim">· {{ auth.roleLabel }}</span>
-          </span>
+          </RouterLink>
           <el-button size="small" @click="handleLogout">退出</el-button>
         </template>
         <RouterLink

@@ -154,6 +154,23 @@ class ResetPasswordSerializer(serializers.Serializer):
     new_password = serializers.CharField(max_length=200)
 
 
+class SelfProfileUpdateSerializer(serializers.Serializer):
+    """个人中心改**自己**的资料（U26）。
+
+    ★ 字段就是一道授权边界：这里没有 `role`、没有 `username`，
+      所以前端无论传什么都不会生效。
+
+    ★ `required=False` 且 `allow_blank=True`：允许「只改手机号」，
+      也允许「把手机号清空」——老师离职换号后可能就是要清掉，
+      强制必填会让他只能填个假号。
+    """
+
+    real_name = serializers.CharField(
+        required=False, allow_blank=True, max_length=100)
+    phone = serializers.CharField(
+        required=False, allow_blank=True, max_length=20)
+
+
 class DisableUserSerializer(serializers.Serializer):
     """停用账号输入。"""
 

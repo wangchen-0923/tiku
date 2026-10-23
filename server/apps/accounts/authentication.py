@@ -47,6 +47,38 @@ def _decode(token: str) -> dict[str, Any]:
     return jwt.decode(token, _secret(), algorithms=[ALGORITHM])
 
 
+def password_fingerprint(user) -> str:
+    """密码指纹：改密码后旧令牌立刻失效（U26）。
+
+    ★★ 为什么需要它
+
+      JWT 是**无状态**的：令牌一旦签发，服务端就不再持有它，
+      改密码**不会**让已发出的令牌失效——它会一直有效到 `exp`（2 小时）。
+      对老师的实际影响是：密码可能已经因为手机丢失而改过，
+      但捡到手机的人还能继续用旧会话操作 2 小时。
+
+      原生方案是给 `user` 加 `token_version` 字段并在每次改密时 +1，
+      但那要一次迁移、一次回填，而这个能力本该一开始就有。
+
+    ★ 为什么用「密码哈希的 sha256」而不是「哈希前缀」
+
+      argon2 的哈希形如 `argon2$argon2id$v=19$m=65536,t=3,p=4$<salt>$<hash>`，
+      **前 16 个字符对所有用户完全相同**（算法与参数），拿前缀当指纹等于没做。
+      对整串再 sha256 一次，既取到「随密码变化」的部分，又不把哈希本身放进令牌
+      （令牌在客户端可解码）。
+
+    ★ 覆盖范围
+
+      - 用户自助改密（`change_password`）→ 哈希变 → 指纹变 → 旧令牌失效
+      - 学校平台账户重置密码（`reset_password`）→ 同上
+      - 两种情况都**不需要**额外写代码，因为都走 `set_password`
+    """
+    import hashlib
+
+    raw = (getattr(user, "password", "") or "").encode()
+    return hashlib.sha256(raw).hexdigest()[:16]
+
+
 def issue_tokens(user) -> dict[str, str]:
     """签发访问令牌与刷新令牌。"""
     now = timezone.now()
@@ -57,6 +89,8 @@ def issue_tokens(user) -> dict[str, str]:
         "role": getattr(user, "role", ""),
         "jti": uuid.uuid4().hex,
         "iat": int(now.timestamp()),
+        # ★ 密码指纹：改密后旧令牌立即作废（U26）
+        "pv": password_fingerprint(user),
     }
     access = _encode(
         {**base, "type": TOKEN_TYPE_ACCESS,
@@ -165,6 +199,18 @@ class JWTAuthentication(authentication.BaseAuthentication):
         token_org = payload.get("org_id")
         if token_org != user.org_id:
             raise exceptions.AuthenticationFailed("账号机构已变更，请重新登录")
+
+        # ★★ 改密码后旧令牌必须失效（U26）
+        #
+        #   严格判定：**缺失 `pv` 也拒绝**。
+        #   若对缺失放行，就会出现「老令牌永远有效、新令牌才受管」的
+        #   两套行为——而攻击者拿到的恰好是那种改密前签发的旧令牌。
+        #   代价是本次升级后所有已登录用户需重新登录一次，这是可接受的。
+        token_pv = payload.get("pv")
+        if token_pv != password_fingerprint(user):
+            raise exceptions.AuthenticationFailed(
+                "密码已变更，请用新密码重新登录"
+            )
 
         return (user, payload)
 

@@ -264,6 +264,20 @@ class AuthService:
             raise ZfError(ErrorCode.AUTH_TOKEN_EXPIRED,
                           "账号机构已变更，请重新登录")
 
+        # ★★ 改密码后旧**刷新**令牌同样失效（U26）
+        #
+        #   只让访问令牌失效是不够的：攻击者拿旧的 refresh 就能换一个
+        #   新的 access，整条失效机制等于被绕过。
+        #
+        #   ★ 这个漏点是靠「跨路径用例」发现的——访问令牌那条路径全绿，
+        #     只有把同一个旧令牌的两个用途都测一遍才暴露。
+        #     凡是"同一判据要在两处生效"的地方，都要各写一条用例。
+        from apps.accounts.authentication import password_fingerprint
+
+        if payload.get("pv") != password_fingerprint(user):
+            raise ZfError(ErrorCode.AUTH_TOKEN_EXPIRED,
+                          "密码已变更，请重新登录")
+
         return issue_tokens(user)
 
 
@@ -605,6 +619,57 @@ class UserService:
             audit_log.record_strict(
                 A_USER_UPDATE, user, operator_id,
                 before=before, after={"changed": changed},
+            )
+        return user
+
+    @staticmethod
+    @transaction.atomic
+    def update_self(
+        *,
+        user_id: int,
+        real_name: str | None = None,
+        phone: str | None = None,
+    ) -> User:
+        """改**自己的**资料（个人中心 · U26）。
+
+        ★ 与 `update_user` 的三点区别：
+
+          1. **不收 `role`**：改自己的角色不在本接口范围内。
+             `update_user` 里那条「不能改自己的角色」是铁律，
+             与其在这里再判一次，不如让这个参数根本不存在——
+             不存在的参数不存在绕过。
+          2. **不收 `org_id` 做归属校验**：改的是自己，归属天然成立。
+          3. 审计里记 `self: True`：事后查「谁把张三的手机号改了」时，
+             能一眼分清是本人改的还是管理员改的。
+        """
+        user = User._base_manager.filter(
+            pk=user_id, deleted_at__isnull=True).first()
+        if user is None:
+            raise ZfError(ErrorCode.COMMON_NOT_FOUND, detail="用户不存在")
+
+        before: dict[str, Any] = {}
+        changed: list[str] = []
+        if real_name is not None:
+            name = real_name.strip()
+            if len(name) > 100:
+                raise ValidationFailed(detail="姓名不能超过 100 个字符")
+            before["real_name"] = user.real_name
+            user.real_name = name
+            changed.append("real_name")
+        if phone is not None:
+            phone_clean = phone.strip()
+            if len(phone_clean) > 20:
+                raise ValidationFailed(detail="手机号不能超过 20 个字符")
+            before["phone"] = user.phone
+            user.phone = phone_clean
+            changed.append("phone")
+
+        if changed:
+            changed.append("updated_at")
+            user.save(update_fields=list(dict.fromkeys(changed)))
+            audit_log.record_strict(
+                A_USER_UPDATE, user, user_id,
+                before=before, after={"changed": changed, "self": True},
             )
         return user
 

@@ -521,6 +521,18 @@ def account_snapshot(org_id: int, user_id: int | None) -> dict[str, Any]:
         account=account, period=period,
         direction=LedgerDirection.SETTLE,
     ).aggregate(s=Sum("delta"))
+    # ★ 本月实际发放额（U26 追加）。
+    #
+    #   没有这个字段时，个人中心只能看到「余额 0 < 阈值 50」→ 弹
+    #   「积分余额偏低」。但老师的真实处境是「学校这个月还没发」，
+    #   两者要采取的行动完全不同（等发放 vs 找管理员充值）。
+    #   判定「有没有发过」必须看账本，不能看余额——余额为 0
+    #   既可能是没发，也可能是发完用光了。
+    granted = CreditLedger.objects.for_org(org_id).filter(
+        account=account, period=period,
+        direction=LedgerDirection.GRANT,
+    ).aggregate(s=Sum("delta"))
+    granted_amount = abs(granted["s"] or ZERO)
     threshold = Decimal(str(get_config("ai.credit_low_balance_threshold", org=org)))
     return {
         "balance": str((account.balance or ZERO).quantize(QUANT)),
@@ -531,6 +543,10 @@ def account_snapshot(org_id: int, user_id: int | None) -> dict[str, Any]:
         "period": period,
         # 当月净消耗（SETTLE 的 delta 之和取负；GRANT 不计入消耗）
         "period_used": str(abs((used["s"] or ZERO)).quantize(QUANT)),
+        # ★ 本月发放额与「是否已发放」：让前端能区分
+        #   「还没发」和「发了但用完了」
+        "period_granted": str(granted_amount.quantize(QUANT)),
+        "has_grant": granted_amount > ZERO,
     }
 
 

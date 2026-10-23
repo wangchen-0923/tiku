@@ -90,6 +90,17 @@
   gap: var(--zf-space-3);
 }
 
+/* ★ 顶栏里的「姓名」是个人中心入口（U26）。
+   它复用了 `.zf-navlink` 的 hover / 选中态，只把字号压回正文尺寸——
+   不压的话它比旁边的「题库」「试卷」大一圈，看起来像个标题。 */
+.zf-topbar__me {
+  font-size: var(--zf-text-sm);
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .zf-main {
   flex: 1;
   width: 100%;
