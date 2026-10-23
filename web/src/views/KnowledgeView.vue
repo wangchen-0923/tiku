@@ -26,7 +26,8 @@ import { useRoute } from 'vue-router'
 
 import * as K from '@/api/knowledge'
 import MathText from '@/components/MathText.vue'
-import type { Course, CourseTree, KnowledgeEntry, KnowledgeNodeRow } from '@/api/knowledge'
+import KnowledgeEntryPanel from '@/components/KnowledgeEntryPanel.vue'
+import type { Course, CourseTree, KnowledgeNodeRow } from '@/api/knowledge'
 import { useAuthStore } from '@/stores/auth'
 
 /** 只用来控制「知识体系管理」入口的可见性（与顶栏菜单同一判据）。 */
@@ -56,7 +57,6 @@ const onlyProblem = ref(route.query.onlyProblem === '1')
 // 选中的知识点
 const nodeId = ref<number | undefined>(undefined)
 const detail = ref<K.KnowledgeNodeDetail | null>(null)
-const entries = ref<KnowledgeEntry[]>([])
 const detailLoading = ref(false)
 
 /** `id → 指标行`，用于左树与表格快速取指标 */
@@ -218,15 +218,11 @@ async function selectNode(id: number): Promise<void> {
   nodeId.value = id
   detailLoading.value = true
   try {
-    const [d, es] = await Promise.all([
-      K.getNode(id),
-      K.listEntries({ nodeId: id }),
-    ])
-    detail.value = d
-    entries.value = es
+    // 条目由 `KnowledgeEntryPanel` 自己加载 —— 它要能在增删改后
+    // **独立刷新**，页面再存一份就会两份数据不一致。
+    detail.value = await K.getNode(id)
   } catch {
     detail.value = null
-    entries.value = []
   } finally {
     detailLoading.value = false
   }
@@ -240,7 +236,6 @@ onMounted(async () => {
 watch(courseId, () => {
   nodeId.value = undefined
   detail.value = null
-  entries.value = []
   void loadCourse()
 })
 
@@ -686,61 +681,14 @@ function metricTag(n: KnowledgeNodeRow): {
             </div>
           </div>
 
-          <!-- ── 知识库条目 ── -->
-          <div class="zf-card">
-            <div class="zf-card__head">
-              <h2 class="zf-card__title">知识库条目</h2>
-              <span class="zf-dim kb__hint">{{ entries.length }} 条</span>
-            </div>
-            <div class="zf-card__body">
-              <el-table
-                v-if="entries.length"
-                :data="entries"
-                size="small"
-                max-height="380"
-              >
-                <el-table-column label="类型" width="98">
-                  <template #default="{ row }">
-                    <el-tag size="small" effect="plain">
-                      {{ K.ENTRY_TYPE_LABEL[row.entry_type] ?? row.entry_type }}
-                    </el-tag>
-                  </template>
-                </el-table-column>
-                <el-table-column
-                  prop="title"
-                  label="标题"
-                  width="180"
-                  show-overflow-tooltip
-                />
-                <el-table-column
-                  prop="content"
-                  label="内容"
-                  min-width="240"
-                  show-overflow-tooltip
-                />
-                <el-table-column label="来源" width="104">
-                  <template #default="{ row }">
-                    <span class="zf-dim">
-                      {{
-                        K.ENTRY_SOURCE_LABEL[row.source_type] ??
-                        row.source_type
-                      }}
-                    </span>
-                  </template>
-                </el-table-column>
-                <template #empty>
-                  <div class="zf-empty">该知识点没有知识库条目</div>
-                </template>
-              </el-table>
-              <div v-else class="zf-empty">
-                该知识点没有知识库条目
-                <div class="zf-dim kb__hint" style="margin-top: 6px">
-                  ★ 没有知识库条目时，AI 生题会被 L1 闸门**拒绝** ——
-                  这是三条不可绕过的保证之一
-                </div>
-              </div>
-            </div>
-          </div>
+          <!-- ── 知识库条目（可新建 / 编辑 / 归档 / 删除）──
+               ★ 2026-10-23：条目归属老师个人，编辑器放在这里，
+                 老师看到「某知识点条目写得不准」时当场就能改。 -->
+          <KnowledgeEntryPanel
+            :node-id="nodeId"
+            :nodes="nodes"
+            @changed="loadCourse"
+          />
         </template>
       </section>
     </div>

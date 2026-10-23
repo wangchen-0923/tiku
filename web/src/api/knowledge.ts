@@ -182,6 +182,20 @@ export async function getNode(id: number): Promise<KnowledgeNodeDetail> {
 //  知识库条目
 // ══════════════════════════════════════════════════
 
+/** 条目归属人。`null` 表示**学校统一导入的公共条目**。 */
+export interface EntryOwner {
+  id: number
+  name: string
+}
+
+/** 拦住改/删的知识点（Q7：该知识点下已有题）。 */
+export interface EntryBlockingNode {
+  node_id: number
+  code: string
+  name: string
+  question_count: number
+}
+
 export interface KnowledgeEntry {
   id: number
   title: string
@@ -197,6 +211,35 @@ export interface KnowledgeEntry {
   adopted_count: number
   created_at: string
   updated_at: string
+  /** 归属老师；`null` = 学校统一导入的公共条目 */
+  owner: EntryOwner | null
+  /**
+   * 当前登录者能否改 / 删 / 归档这一条。
+   *
+   * ★★ 这个字段是**后端算好的结论**，前端不要自己再用
+   *   `owner.id === me.id` 推一遍 —— 两边一旦算得不一样，
+   *   就会出现「按钮是亮的、点下去 403」或反过来。
+   *   判据在后端 `assert_entry_writable()` + Q7 闸门，
+   *   与 `blocking_nodes` 同源。
+   */
+  editable: boolean
+  /** 不能改的原因（有题的知识点）。空数组 = 没被 Q7 拦住 */
+  blocking_nodes: EntryBlockingNode[]
+}
+
+/** 写条目的白名单。
+ *
+ * ★ 与后端 `EntryUpdateSerializer` 逐字对应：**没有** `course_id` /
+ *   `chapter_id`（章节归属由知识点反推），传了后端会 400 而不是忽略。
+ */
+export interface EntryWriteBody {
+  title?: string
+  content?: string
+  entry_type?: string
+  source_type?: string
+  source_ref?: string
+  /** 传了就**整体替换**关联；替换后为空会被后端拒绝 */
+  node_ids?: number[]
 }
 
 export async function listEntries(q: {
@@ -213,6 +256,40 @@ export async function listEntries(q: {
     },
   )
   return d.items ?? []
+}
+
+export async function getEntry(id: number): Promise<KnowledgeEntry> {
+  return http.get<KnowledgeEntry>(`/api/v1/knowledge/entries/${id}/`)
+}
+
+export async function createEntry(
+  body: EntryWriteBody & { title: string; content: string; node_ids: number[] },
+): Promise<KnowledgeEntry> {
+  return http.post<KnowledgeEntry>('/api/v1/knowledge/entries/', body)
+}
+
+export async function updateEntry(
+  id: number,
+  body: EntryWriteBody,
+): Promise<KnowledgeEntry> {
+  return http.patch<KnowledgeEntry>(`/api/v1/knowledge/entries/${id}/`, body)
+}
+
+/** 删除 = **软删 + 审计**（与「归档」不同，见 `archiveEntry`）。 */
+export async function deleteEntry(
+  id: number,
+  reason = '',
+): Promise<KnowledgeEntry & { deleted_at: string | null }> {
+  return http.del<KnowledgeEntry & { deleted_at: string | null }>(
+    `/api/v1/knowledge/entries/${id}/`, undefined, { reason },
+  )
+}
+
+/** 归档 = 只改 `status`，**可逆、不写审计**。 */
+export async function archiveEntry(id: number): Promise<KnowledgeEntry> {
+  return http.post<KnowledgeEntry>(
+    `/api/v1/knowledge/entries/${id}/archive/`,
+  )
 }
 
 // ══════════════════════════════════════════════════

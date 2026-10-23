@@ -113,7 +113,14 @@ const RULES = {
   'user.disable': { min: LEVEL.SCHOOL },
   'user.transfer': { min: LEVEL.SCHOOL },
   'knowledge.node.manage': { min: LEVEL.SCHOOL },
-  'knowledge.entry.publish': { min: LEVEL.SCHOOL },
+  // ★★ 知识库条目的增删改（2026-10-23 口径改版）：**教师**，不是学校账户。
+  //    需求方定的是「条目归属老师个人，由老师自行建立」——
+  //    老师录错一个字却要等学校账户来改，这个功能等于没做。
+  //    学校账户仍可管全机构（后端 `assert_entry_writable` 按归属判），
+  //    所以这里是 `min` 而不是 `only: ['TEACHER']`。
+  //    ★ 原先是 `knowledge.entry.publish`（min SCHOOL）且全项目零引用 ——
+  //      一个为条目写入准备、却因为编辑器没做而成了死配置的能力名。
+  'knowledge.entry.manage': { min: LEVEL.TEACHER },
   'question.public.review': { min: LEVEL.SCHOOL },
   'analytics.org': { min: LEVEL.SCHOOL },
 

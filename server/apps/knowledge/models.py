@@ -438,9 +438,21 @@ class KnowledgeNode(SoftDeleteModel):
 
     # ── 知识库门禁 ──
     def active_entry_count(self) -> int:
-        """该知识点下 ACTIVE 的知识库条目数。"""
+        """该知识点下 ACTIVE 的知识库条目数。★ L1 门禁的判据之一。
+
+        ★★ `entry__deleted_at__isnull=True` **不可省**：
+          `knowledge_entry_node` 是纯关联表（没有 `deleted_at`），
+          `KnowledgeEntryNode.objects` 因此**不会**排除已软删的条目；
+          而 `entry__status=ACTIVE` 只是 join 上的过滤条件，
+          Django 不会顺带套用 `KnowledgeEntry.objects` 的默认管理器。
+          少了这一句，软删掉的条目会一直算作「有依据」——
+          门禁说够、检索却拿不到，AI 会以「无依据」失败而不是
+          `KB_INSUFFICIENT`，排查时完全看不出原因。
+        """
         return KnowledgeEntryNode.objects.filter(
-            node=self, entry__status=KnowledgeEntryStatus.ACTIVE
+            node=self,
+            entry__status=KnowledgeEntryStatus.ACTIVE,
+            entry__deleted_at__isnull=True,
         ).count()
 
     @property

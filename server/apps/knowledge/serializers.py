@@ -25,6 +25,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from rest_framework import serializers
 
 from apps.common.constants import KnowledgeEntryStatus
@@ -185,6 +187,14 @@ class KnowledgeEntrySerializer(serializers.ModelSerializer):
     """
 
     node_ids = serializers.SerializerMethodField()
+    # ── 归属与可编辑性（2026-10-23 条目归属教师个人）──
+    #   ★ 这三个字段是**给界面用的判据**，不是新的业务真相：
+    #     `editable` 必须与 `KnowledgeEntryService.assert_entry_writable()`
+    #     和 Q7 闸门**同口径**，否则会出现「按钮是亮的、点下去 403/409」。
+    #     改任一处都要同步改这里（三个判据，一个结论）。
+    owner = serializers.SerializerMethodField()
+    editable = serializers.SerializerMethodField()
+    blocking_nodes = serializers.SerializerMethodField()
 
     class Meta:
         model = KnowledgeEntry
@@ -193,6 +203,7 @@ class KnowledgeEntrySerializer(serializers.ModelSerializer):
             "source_ref", "course_id", "chapter_id",
             "node_ids", "status", "adopted_count",
             "created_at", "updated_at",
+            "owner", "editable", "blocking_nodes",
         ]
 
     def get_node_ids(self, obj) -> list[int]:
@@ -201,6 +212,62 @@ class KnowledgeEntrySerializer(serializers.ModelSerializer):
             link.node_id for link in obj.entry_links.all()
             if link.node_id
         ]
+
+    def get_owner(self, obj) -> dict[str, Any] | None:
+        """归属老师。**`None` = 学校统一导入的公共条目**。
+
+        ★ 不能用「`created_by` 为空就当公共、谁都能改」——公共条目的
+          写权限只在机构管理员手里（见 `assert_entry_writable`）。
+          这里返回 `None` 是让界面显示「学校公共」而不是空白。
+        """
+        u = obj.created_by
+        if u is None:
+            return None
+        return {
+            "id": u.pk,
+            "name": getattr(u, "real_name", "") or getattr(u, "username", ""),
+        }
+
+    def get_blocking_nodes(self, obj) -> list[dict[str, Any]]:
+        """这条条目关联的知识点里**有题**的那几个（Q7 闸门的原因）。
+
+        ★ 数据来自 context 里的 `blocking_by_node`（视图**一次聚合**算出），
+          不在这里逐条查库 —— 一页 100 条、每条 2 个知识点，
+          逐条查就是 200 次 SQL。
+        """
+        bmap: dict[int, dict[str, Any]] = (
+            self.context.get("blocking_by_node") or {}
+        )
+        if not bmap:
+            return []
+        return [
+            bmap[link.node_id]
+            for link in obj.entry_links.all()
+            if link.node_id in bmap
+        ]
+
+    def get_editable(self, obj) -> bool:
+        """当前请求者能否改 / 删 / 归档这一条。
+
+        三个条件全部满足才为 True（与后端两道闸门一一对应）：
+
+            ① 归属：本人（教师）或学校平台账户
+            ② 不是公共条目（`created_by IS NULL` 只有学校账户能动）
+            ③ 关联的知识点**都没题**（Q7：知识库是 AI 生题依据）
+
+        ★ 没有 request 上下文时返回 False（保守）：宁可按钮不亮，
+          也不要让界面承诺一个后端会拒绝的动作。
+        """
+        user = self.context.get("user")
+        if user is None:
+            return False
+        can_manage_all = bool(self.context.get("can_manage_all"))
+        if not can_manage_all:
+            if obj.created_by_id is None:
+                return False
+            if obj.created_by_id != getattr(user, "pk", None):
+                return False
+        return not self.get_blocking_nodes(obj)
 
 
 # ══════════════════════════════════════════════════════════════

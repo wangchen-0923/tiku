@@ -398,10 +398,17 @@ class KnowledgeNodeSelector:
             .values("knowledge_node_id")
             .annotate(n=Count("id"))
         }
+        # ★ `entry__deleted_at__isnull=True` 必须带上：关联表没有
+        #   `deleted_at`，默认管理器不会排除「条目已软删、关联行还在」的行。
+        #   漏了它的直接后果是「卡片说 4 条、明细只列 3 条」。
         e_counts = {
             row["node_id"]: row["n"]
             for row in KnowledgeEntryNode.objects.for_org(org_id)
-            .filter(node_id__in=node_ids, entry__status=KnowledgeEntryStatus.ACTIVE)
+            .filter(
+                node_id__in=node_ids,
+                entry__status=KnowledgeEntryStatus.ACTIVE,
+                entry__deleted_at__isnull=True,
+            )
             .values("node_id")
             .annotate(n=Count("id"))
         }
@@ -507,6 +514,52 @@ class KnowledgeEntrySelector:
         return KnowledgeEntrySelector.by_node(org_id, node_id).count()
 
     @staticmethod
+    def blocking_by_node(
+        org_id: int, node_ids: list[int]
+    ) -> dict[int, dict[str, Any]]:
+        """**一批**知识点的「有题」情况，供列表一次性回传可编辑性。
+
+        ★★ 为什么不复用 `KnowledgeEntryService.question_dependency()`：
+          那个函数按「一次一个写入动作」设计，每次一条 `COUNT` 查询。
+          而在**列表**里对每一行都调一次就是 N+1 —— 一页 100 条、每条
+          2 个知识点，就是 200 次查询。这里一次 `GROUP BY` 全算完。
+
+        ★ 口径必须与写入闸门**逐字一致**（否则会出现「列表说能改、
+          点下去 409」）：只看本机构、题目未软删、**草稿题也算有题**。
+          改这里必须同步改 `question_dependency`，反过来也是。
+
+        返回 `{node_id: {node_id, code, name, question_count}}`；
+        没有题的知识点不出现在字典里。
+        """
+        from django.db.models import Count
+
+        from apps.questionbank.models import QuestionKnowledge
+
+        ids = [int(i) for i in (node_ids or []) if i]
+        if not ids:
+            return {}
+
+        rows = (
+            QuestionKnowledge.objects.for_org(org_id)
+            .filter(
+                knowledge_node_id__in=ids,
+                question__deleted_at__isnull=True,
+            )
+            .values("knowledge_node_id", "knowledge_node__code",
+                    "knowledge_node__name")
+            .annotate(n=Count("id", distinct=True))
+        )
+        return {
+            r["knowledge_node_id"]: {
+                "node_id": r["knowledge_node_id"],
+                "code": r["knowledge_node__code"],
+                "name": r["knowledge_node__name"],
+                "question_count": r["n"],
+            }
+            for r in rows
+        }
+
+    @staticmethod
     def adopted(org_id: int) -> QuerySet[KnowledgeEntry]:
         """被 AI 采纳过的条目（利用率分子）。"""
         return KnowledgeEntry.objects.for_org(org_id).filter(adopted_count__gt=0)
@@ -531,6 +584,8 @@ class KnowledgeEntrySelector:
             .filter(
                 node__in=node_qs,
                 entry__status=KnowledgeEntryStatus.ACTIVE,
+                # ★ 同 `briefs`：软删的条目不算「覆盖了该知识点」
+                entry__deleted_at__isnull=True,
             )
             .values("node_id").distinct().count()
         )
@@ -553,7 +608,10 @@ class KnowledgeEntrySelector:
         """完全没有条目的知识点。★ 教研补内容的清单。"""
         covered_ids = (
             KnowledgeEntryNode.objects.for_org(org_id)
-            .filter(entry__status=KnowledgeEntryStatus.ACTIVE)
+            .filter(
+                entry__status=KnowledgeEntryStatus.ACTIVE,
+                entry__deleted_at__isnull=True,
+            )
             .values_list("node_id", flat=True)
         )
         return (

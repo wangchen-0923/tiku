@@ -688,7 +688,12 @@ class KnowledgeTreeService:
                     str(getattr(link.entry, "title", "") or "")[:40]
                     for link in qs[:5]
                 ],
-                "hint": "先解除这些条目与本知识点的关联",
+                # ★ 2026-10-23：这条提示原来写「先解除这些条目与本知识点的
+                #   关联」，而当时**页面上根本没有条目管理入口** ——
+                #   老师在管理页看到这句话，找不到任何可点的东西。
+                #   现在指向真实存在的入口（知识点详情下方的「知识库条目」）。
+                "hint": "在「知识库条目」里把条目改挂到别的知识点，或删除"
+                        "（条目归创建者本人，学校平台账户可代管）",
             })
 
         edges = KnowledgeEdge.objects.for_org(org_id).filter(
@@ -1192,6 +1197,62 @@ class KnowledgeEntryService:
                 "question_count": counts[nid],
             })
         return out
+
+    @staticmethod
+    def assert_entry_writable(entry: KnowledgeEntry, user) -> None:
+        """**归属守卫**：谁能改 / 删 / 归档这一条知识库条目。
+
+        口径（2026-10-23 需求方拍板）：**条目归属老师个人，由老师自行建立**。
+        与「班级归教师个人」是同一条原则在知识库上的落实。
+
+            - 学校平台账户（L2）：可改**全机构**条目
+              （它要为全校内容负责，也是存量导入数据的维护者）
+            - 教师（L1）：只能改 `created_by == 自己` 的条目
+            - 系统管理员（L3，无机构）：一律拒绝 —— 由 `_org_id()` 先拦，
+              这里再兜一层（否则绕过视图直接调服务层就漏了）
+
+        ★★ **`created_by` 为空 = 学校统一导入的公共条目，教师不可改。**
+          库里 110 条存量条目全是这种（`created_by IS NULL`）。
+          如果按「无主 = 谁都能改」处理，任何教师都能改掉全校共用的
+          AI 生题依据，而且审计里只有一个 id —— 这是必须避免的。
+
+        ★ 读取不隔离（与题目/试卷的 `scope_owned_or_public` **不同**）：
+          条目是全校 AI 生题的共同依据，`ai_call_log.kb_entry_ids`
+          按机构记录。若列表按人收窄，老师会看到「AI 引用了一条
+          我打不开的条目」，而 L1 门禁的条目计数也还是全机构的两个数——
+          读隔离与检索口径一冲突，就会变成「界面说没依据、AI 说够用」。
+          所以：**读全机构共享，写归个人。**
+        """
+        from apps.common.scoping import Scope, scope_of
+
+        def _deny(detail: str, **extra: Any) -> None:
+            """403。★ 自带 `extra` 让前端能区分「公共条目」与「别人的」。"""
+            raise ZfError(ErrorCode.AUTH_FORBIDDEN, detail=detail,
+                          extra=extra or None)
+
+        scope = scope_of(user)
+        if scope == Scope.ORG_ALL.value:
+            return
+        if scope != Scope.OWN_TEACHING.value:
+            _deny("需要教师及以上权限", scope=scope)
+
+        owner_id = entry.created_by_id
+        if owner_id is None:
+            _deny(
+                "这条知识库条目是学校统一导入的公共条目，只有学校平台账户"
+                "可以修改。要调整它，请联系学校平台账户；"
+                "你自己新建的条目可以自行编辑和删除。",
+                owner="PUBLIC",
+                entry_id=entry.pk,
+            )
+        if owner_id != getattr(user, "pk", None):
+            _deny(
+                "这条知识库条目由其他老师创建，只有创建者本人或学校平台账户"
+                "可以修改。你可以新建自己的条目。",
+                owner="OTHER",
+                entry_id=entry.pk,
+                created_by=owner_id,
+            )
 
     @staticmethod
     def assert_entry_modifiable(

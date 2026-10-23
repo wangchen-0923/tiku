@@ -26,6 +26,7 @@ from apps.common.exceptions import ErrorCode, ZfError
 from apps.common.pagination import StandardPagination
 from apps.common.permissions import require_school_admin, IsSchoolAdmin, IsTeacherAccount
 from apps.common.responses import created, ok
+from apps.knowledge.models import KnowledgeEntry
 from apps.knowledge.extract import (
     DEFAULT_MAX_BYTES,
     SCAN_PDF_WARNING,
@@ -69,6 +70,38 @@ def _org_id(request: Request) -> int:
     if not org_id:
         raise ZfError(ErrorCode.AUTH_FORBIDDEN, detail="当前账号未绑定机构")
     return int(org_id)
+
+
+def _entry_context(request: Request, entries) -> dict:
+    """知识库条目序列化的上下文：**一次算出整页的可编辑性**。
+
+    ★★ 为什么要有这个函数：`editable` 依赖「关联知识点下有没有题」，
+      如果不批量算，序列化 100 行就是 100+ 次 `COUNT`。
+      这里先把整页涉及的 `node_id` 收齐，再用
+      `KnowledgeEntrySelector.blocking_by_node()` 一次 `GROUP BY` 查完。
+
+    ★ `can_manage_all` 用 `scope_of()` 判，与写接口的
+      `assert_entry_writable()` 同一个判据来源（都走 `scoping`），
+      不在这里另写 `role == "ORG_ADMIN"`。
+    """
+    from apps.common.scoping import Scope, scope_of
+
+    node_ids: set[int] = set()
+    for e in entries:
+        for link in e.entry_links.all():
+            if link.node_id:
+                node_ids.add(link.node_id)
+
+    org_id = getattr(request.user, "org_id", None)
+    return {
+        "request": request,
+        "user": request.user,
+        "can_manage_all": scope_of(request.user) == Scope.ORG_ALL.value,
+        "blocking_by_node": (
+            KnowledgeEntrySelector.blocking_by_node(org_id, list(node_ids))
+            if org_id else {}
+        ),
+    }
 
 
 # ══════════════════════════════════════════════════════════════
@@ -661,10 +694,16 @@ class EntryListCreateView(APIView):
         else:
             raise ZfError(ErrorCode.COMMON_VALIDATION_ERROR,
                           detail="需要传 node_id 或 chapter_id")
+        # ★ 预取关联与归属人：否则序列化时每行都要查 `entry_links`
+        #   和 `created_by`（一页 100 行 ≈ 300 次 SQL）。
+        qs = qs.select_related("created_by").prefetch_related("entry_links")
         paginator = StandardPagination()
         page = paginator.paginate_queryset(qs, request, view=self)
         return paginator.get_paginated_response(
-            KnowledgeEntrySerializer(page, many=True).data)
+            KnowledgeEntrySerializer(
+                page, many=True, context=_entry_context(request, page)
+            ).data
+        )
 
     def post(self, request: Request) -> Response:
         org_id = _org_id(request)
@@ -709,8 +748,11 @@ class EntryListCreateView(APIView):
             source_ref=v.get("source_ref", ""),
             created_by_id=request.user.id,
         )
-        return created(KnowledgeEntrySerializer(e).data,
-                       message="知识库条目已创建")
+        return created(
+            KnowledgeEntrySerializer(
+                e, context=_entry_context(request, [e])
+            ).data,
+            message="知识库条目已创建")
 
 
 class EntryAdoptView(APIView):
@@ -734,16 +776,30 @@ class EntryAdoptView(APIView):
 
 
 class EntryArchiveView(APIView):
-    """`POST /api/v1/knowledge/entries/{id}/archive/` 归档条目。"""
+    """`POST /api/v1/knowledge/entries/{id}/archive/` 归档条目。
 
-    permission_classes = [IsAuthenticated, IsSchoolAdmin]
+    ★ 权限 2026-10-23 起从「学校平台账户」放宽到「教师 + 归属守卫」：
+      条目归属老师个人（需求方拍板），归档只是把自己的条目下架，
+      不该比编辑更严。**采纳（adopt）仍只给学校账户** ——
+      那是对全校 AI 生题门禁的表态，不是个人动作。
+    """
+
+    permission_classes = [IsAuthenticated, IsTeacherAccount]
 
     def post(self, request: Request, pk: int) -> Response:
         org_id = _org_id(request)
         # ★ 真实签名只有 `(org_id, entry_id)`——没有 `operator_id`。
+        existing = KnowledgeEntrySelector.get(org_id, pk)
+        if existing is None:
+            raise ZfError(ErrorCode.COMMON_NOT_FOUND, detail="条目不存在")
+        KnowledgeEntryService.assert_entry_writable(existing, request.user)
         e = KnowledgeEntryService.archive_entry(
             org_id=org_id, entry_id=pk)
-        return ok(KnowledgeEntrySerializer(e).data, message="已归档")
+        return ok(
+            KnowledgeEntrySerializer(
+                e, context=_entry_context(request, [e])
+            ).data,
+            message="已归档")
 
 
 class EntryDetailView(APIView):
@@ -753,14 +809,24 @@ class EntryDetailView(APIView):
       它们共用同一把**依赖校验闸门**（Q7：关联知识点下有题就不许改删），
       拆成三个视图会让那把闸门的调用点散落三处，漏一处就是绕过。
 
-    ★★ `GET` 与 `PATCH`/`DELETE` 的权限**刻意不同**：
+    ★★ 权限（2026-10-23 需求方拍板「条目归属老师个人，由老师自行建立」）：
 
-        GET     教师及以上（与列表 `GET /entries/` 一致，读不该更严）
-        PATCH   机构管理员（与既有的 `archive/` 归档接口一致）
-        DELETE  机构管理员
+        GET     教师及以上 —— **读全机构共享**
+        PATCH   教师及以上 + **归属守卫**
+        DELETE  教师及以上 + **归属守卫**
 
-      `KnowledgeEntry` 是 AI 生题的**依据**，改它等于改 AI 的输入；
-      而归档既有实现已经是 `IsSchoolAdmin`，改/删不该比归档更宽松。
+      归属守卫在 `KnowledgeEntryService.assert_entry_writable()`：
+      学校平台账户可改全机构；教师只能改自己创建的；
+      `created_by IS NULL`（学校统一导入的公共条目）只有学校账户能动。
+
+      ★ 为什么**读不隔离**（与题目/试卷的 `scope_owned_or_public` 不同）：
+        条目是全校 AI 生题的共同依据，`ai_call_log.kb_entry_ids` 按机构记。
+        若列表按人收窄，老师会看到「AI 引用了一条我打不开的条目」，
+        而 L1 门禁的条目计数仍是全机构的 —— 界面说没依据、AI 说够用。
+        所以：**读共享，写归个人。**
+      ★ 但「能不能改」仍是一道闸门：`KnowledgeEntry` 是 AI 生题的**依据**，
+        改它等于改 AI 的输入，所以即便本人创建，Q7（关联知识点下有题）
+        依然会拦。
 
     ★ 为什么这里**不写**归档接口的完整路径：`verify_api_contracts.py` 会扫
       docstring 里的 HTTP 方法名，扫到那个端点的动词就会认为「本视图承诺了
@@ -771,11 +837,21 @@ class EntryDetailView(APIView):
       （见 `urls.py` 的说明），本视图注册在后面。
     """
 
-    def get_permissions(self):
-        """按方法取权限：读=教师+，写=机构管理员。"""
-        if self.request.method in ("PATCH", "DELETE"):
-            return [IsAuthenticated(), IsSchoolAdmin()]
-        return [IsAuthenticated(), IsTeacherAccount()]
+    permission_classes = [IsAuthenticated, IsTeacherAccount]
+
+    def _guard(self, request: Request, pk: int) -> None:
+        """归属守卫。★ 用 `_base_manager` 取，**已软删的也要拦** ——
+        否则教师可以对别人已删除的条目调 DELETE 拿到 200（幂等分支），
+        等于多出一条「能操作别人条目」的证据。
+        """
+        org_id = _org_id(request)
+        entry = (
+            KnowledgeEntry._base_manager
+            .filter(pk=pk, org_id=org_id)
+            .first()
+        )
+        if entry is not None:
+            KnowledgeEntryService.assert_entry_writable(entry, request.user)
 
     def get(self, request: Request, pk: int) -> Response:
         """`GET` 单条详情（含 `node_ids`）。"""
@@ -783,7 +859,11 @@ class EntryDetailView(APIView):
         e = KnowledgeEntrySelector.get(org_id, pk)
         if e is None:
             raise ZfError(ErrorCode.COMMON_NOT_FOUND, detail="条目不存在")
-        return ok(KnowledgeEntrySerializer(e).data)
+        return ok(
+            KnowledgeEntrySerializer(
+                e, context=_entry_context(request, [e])
+            ).data
+        )
 
     def patch(self, request: Request, pk: int) -> Response:
         """`PATCH` 更新条目。
@@ -794,6 +874,7 @@ class EntryDetailView(APIView):
           `KNOWLEDGE.ENTRY_IN_USE`，`data.blocking` 列出是哪几个知识点。
         """
         org_id = _org_id(request)
+        self._guard(request, pk)
         s = EntryUpdateSerializer(data=request.data, partial=True)
         s.is_valid(raise_exception=True)
         v = dict(s.validated_data)
@@ -803,7 +884,11 @@ class EntryDetailView(APIView):
             org_id=org_id, entry_id=pk, payload=v,
             operator_id=getattr(request.user, "id", None),
         )
-        return ok(KnowledgeEntrySerializer(e).data, message="知识库条目已更新")
+        return ok(
+            KnowledgeEntrySerializer(
+                e, context=_entry_context(request, [e])
+            ).data,
+            message="知识库条目已更新")
 
     def delete(self, request: Request, pk: int) -> Response:
         """`DELETE` **软删**条目（不是归档，也不是物理删除）。
@@ -817,12 +902,15 @@ class EntryDetailView(APIView):
           不需要再发一次 `GET`（那时已经 404 了）。
         """
         org_id = _org_id(request)
+        self._guard(request, pk)
         e = KnowledgeEntryService.delete_entry(
             org_id=org_id, entry_id=pk,
             operator_id=getattr(request.user, "id", None),
             reason=str((request.data or {}).get("reason") or "")[:200],
         )
-        data = KnowledgeEntrySerializer(e).data
+        data = KnowledgeEntrySerializer(
+            e, context=_entry_context(request, [e])
+        ).data
         data["deleted_at"] = e.deleted_at
         return ok(data, message="知识库条目已删除（软删，可在审计中追溯）")
 

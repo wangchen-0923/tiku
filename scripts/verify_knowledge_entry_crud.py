@@ -562,23 +562,30 @@ def _run(base: dict[str, int]) -> int:
           KnowledgeEntry._base_manager.get(pk=e2.id).deleted_at is None)
 
     # ══════════════════════════════════════════════════════════
-    section("R2b · 权限：教师可读，改/删要机构管理员")
+    section("R2b · 权限：教师可读；写要「本人创建」或学校账户")
     # ══════════════════════════════════════════════════════════
     # ★ 越权断言必须用**可改的**条目（`e1` 挂在无题知识点上，管理员能改）。
     #   若拿挂在有题知识点上的 `e2` 来试，403 与 409 都会出现，
     #   就分不清「是权限拦的」还是「是依赖校验拦的」—— 断言失去证伪能力。
+    #
+    # ★★ 2026-10-23 口径变更：条目归属老师个人（`created_by`），
+    #   教师不再「一律不能写」，而是「只能写自己创建的」。
+    #   这里的 `e1` 是**管理员**用服务层建的（`created_by` 为空/管理员），
+    #   所以教师仍然 403 —— 但原因已经不是「写操作要机构管理员」，
+    #   而是「不是本人创建」。完整矩阵见 `verify_knowledge_entry_owner.py`。
     r = tc.get(URL_ONE.format(eid=e2.id))
     check("★ 教师（TEACHER）可以 GET 单条详情 → 200", r.status_code == 200,
           f"HTTP {r.status_code}")
     r = tc.patch(URL_ONE.format(eid=e1.id),
                  data=json.dumps({"title": "教师试图改"}),
                  content_type="application/json")
-    check("★★ 教师 PATCH **可改的**条目 → 403（写操作要机构管理员）",
+    check("★★ 教师 PATCH **他人/公共**条目 → 403（归属守卫）",
           r.status_code == 403, f"HTTP {r.status_code} · {body(r).get('code')}")
     e1.refresh_from_db()
     check("★★ 教师被拒后条目没变", e1.title == "R1 新标题", e1.title)
     r = tc.delete(URL_ONE.format(eid=e1.id))
-    check("★★ 教师 DELETE **可删的**条目 → 403", r.status_code == 403,
+    check("★★ 教师 DELETE **可删的**他人条目 → 403（归属守卫）",
+          r.status_code == 403,
           f"HTTP {r.status_code} · {body(r).get('code')}")
     check("★★ 教师被拒后行没被软删",
           KnowledgeEntry._base_manager.get(pk=e1.id).deleted_at is None)

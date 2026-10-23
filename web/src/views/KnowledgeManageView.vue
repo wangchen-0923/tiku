@@ -34,6 +34,7 @@ import type {
   TreeNode,
 } from '@/api/knowledge'
 import { ApiError } from '@/api/http'
+import KnowledgeEntryPanel from '@/components/KnowledgeEntryPanel.vue'
 
 // ══════════════════════════════════════════════════
 //  基础状态
@@ -138,6 +139,15 @@ const allTasks = computed(() => {
   return out
 })
 
+/** 全部知识点（条目面板「关联知识点」多选使用）。
+ *  ★ 只在管理页需要：条目可以跨任务挂，所以不能只给当前任务下的点。 */
+const allNodes = computed(() =>
+  treeData.value
+    .flatMap((c) => c.children ?? [])
+    .flatMap((t) => t.children ?? [])
+    .map((n) => ({ id: n.id, name: n.name, code: n.code })),
+)
+
 /** 章下拉（建任务用） */
 const allChapters = computed(() =>
   treeData.value.map((c) => ({ id: c.id, label: `${c.name}（${c.code}）` })),
@@ -200,6 +210,12 @@ function findNode(key: string): FlatNode | null {
     return null
   }
   return walk(treeData.value)
+}
+
+/** 条目增删改之后刷新：树上的「知识库 N」与引用清单都来自后端。 */
+async function reloadAfterEntryChange(): Promise<void> {
+  await loadCourse()
+  if (selected.value?.type === 'NODE') await onNodeClick(selected.value)
 }
 
 function clearSelection(): void {
@@ -689,7 +705,8 @@ function showRefs(title: string, rows: EntityReference[]): void {
         </div>
       </section>
 
-      <!-- ══════════ 右：详情 ══════════ -->
+      <!-- ══════════ 右：详情 + 知识库条目 ══════════ -->
+      <div class="km__side">
       <section class="zf-card km__detail">
         <div class="zf-card__head">
           <h2 class="zf-card__title">
@@ -841,6 +858,16 @@ function showRefs(title: string, rows: EntityReference[]): void {
           </template>
         </div>
       </section>
+
+      <!-- ★ 知识点下的知识库条目（2026-10-23：条目归属老师个人，
+           在与「结构」同一页里就能管，不必再猜去哪儿改）-->
+      <KnowledgeEntryPanel
+        v-if="selected?.type === 'NODE'"
+        :node-id="selected.id"
+        :nodes="allNodes"
+        @changed="reloadAfterEntryChange"
+      />
+      </div>
     </div>
 
     <!-- ══════════ 课程表单 ══════════ -->
@@ -1071,6 +1098,13 @@ function showRefs(title: string, rows: EntityReference[]): void {
   grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
   gap: var(--zf-space-4);
   align-items: start;
+}
+
+.km__side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--zf-space-4);
+  min-width: 0;
 }
 
 .km__treebody {
