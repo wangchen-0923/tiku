@@ -15,6 +15,25 @@ const router = useRouter()
 const route = useRoute()
 
 const showNav = computed(() => auth.isAuthenticated)
+
+/* ══════════════════════════════════════════════════════════════
+   一级导航只放「核心模块」，一个模块一项
+   ══════════════════════════════════════════════════════════════
+
+   ★★ 收起的是**步骤**，不是**模块**：
+       难度打标 / 导入题目    → 题库页（页内工具栏 + 难度未分层告警里）
+       知识点补标 / 知识管理  → 知识体系页（页头 + 零题知识点卡）
+       教师账号 / 积分与凭证  → 设置页（`/settings`，卡片式入口）
+
+   ★ 为什么不做成下拉菜单：下拉把入口**藏起来**了，用户得先知道
+     「它在那儿」才点得开；而页内入口是**在该动手的地方出现**——
+     库里还有 1200 道题没标难度时，告警旁边就有「去快速打标」。
+     入口跟着问题走，比跟着分类走有用。
+
+   ★ 判定标准（用来决定以后新加的东西放哪儿）：
+     一级 = 老师**每天**会进，且进去就是干活的主界面。
+     其余一律进它所属的页，哪怕它自己是个完整页面。
+   ══════════════════════════════════════════════════════════════ */
 /** ★ 姓名与角色重复时不再重复显示（`real_name` 可能就叫「平台管理员」） */
 const showRole = computed(
   () =>
@@ -59,50 +78,24 @@ function handleLogout(): void {
 
       <nav v-if="showNav" class="zf-topbar__nav">
         <RouterLink class="zf-navlink" :to="{ name: 'Home' }">概览</RouterLink>
+
+        <!-- ★★ 题库：一级只留「模块」，不留「步骤」。
+             导入题目、难度打标都在**题库页里**：
+               - 页头工具栏（随时可用）
+               - 难度未分层告警卡（有问题时才出现，旁边就是「去快速打标」）
+             ★ 不收进下拉菜单：菜单把入口藏起来，用户得先知道它在那儿；
+               而页内入口出现在「你正看着这个问题」的地方。 -->
         <RouterLink class="zf-navlink" :to="{ name: 'QuestionList' }">
           题库
         </RouterLink>
-        <!-- ★ 难度快速打标（`P1-100b`）。
-             放顶层导航而不是藏在题库页里：打标是一件**独立的、
-             一次要花两三小时**的工作，老师需要能直接进来、
-             也能中途离开再回来（`after_id` 支持续标）。 -->
-        <RouterLink class="zf-navlink" :to="{ name: 'QuestionMarkDifficulty' }">
-          难度打标
-        </RouterLink>
-        <!-- ★ 知识点补标：与难度打标并列的独立页面。
-             它解的是「21 个知识点一道题都没有」——
-             按那些点出的学情与个性化练习永远是空的。 -->
-        <RouterLink class="zf-navlink" :to="{ name: 'QuestionMarkKnowledge' }">
-          知识点补标
-        </RouterLink>
-        <!-- ★ 导入题目：上传 Word/PDF/Excel → 逐题确认 → 入题库。
-             与「难度打标」「知识点补标」是一组：它们都在补数据。 -->
-        <RouterLink class="zf-navlink" :to="{ name: 'ImportPaper' }">
-          导入题目
-        </RouterLink>
+
+        <!-- ★★ 知识体系：知识点补标与结构管理都在**知识体系页里**。
+             补标挂在「零题知识点」卡上（看到 21 个点一道题都没有 →
+             下一步就是补），管理在页头（学校平台账户才显示）。 -->
         <RouterLink class="zf-navlink" :to="{ name: 'Knowledge' }">
           知识体系
         </RouterLink>
-        <!-- ★ 知识体系**管理**（计划 U10）：加章/任务/知识点、移动、删除。
-             只给学校平台账户（`knowledge.node.manage` 是 L2 能力）——
-             课程与知识树是全校共用资产，教师不该改它的结构。 -->
-        <RouterLink
-          v-if="auth.can('knowledge.node.manage')"
-          class="zf-navlink"
-          :to="{ name: 'KnowledgeManage' }"
-        >
-          知识管理
-        </RouterLink>
-        <!-- ★ 教师账号：学校平台账户的主界面（2026-10-21 规则改版）。
-             学校不建班，只授权教师账号 —— 这是它唯一的日常动作。
-             教师看不到这一项：他不需要给自己开账号。 -->
-        <RouterLink
-          v-if="auth.can('user.create')"
-          class="zf-navlink"
-          :to="{ name: 'TeacherAccounts' }"
-        >
-          教师账号
-        </RouterLink>
+
         <RouterLink class="zf-navlink" :to="{ name: 'Classroom' }">
           班级
         </RouterLink>
@@ -115,18 +108,17 @@ function handleLogout(): void {
         <RouterLink class="zf-navlink" :to="{ name: 'SheetList' }">
           答题卡
         </RouterLink>
-        <!-- ★ 积分与凭证（U27）：余额、逐笔流水、自定义 API Key。
-             放在导航**最后**：它不是每天用的页面，而是「话费用完了」
-             「要配自己的 Key」时才进来的。
-             ★ 学校平台账户在同一页的第三块里改规则/发放/对账 ——
-             不另开一页，因为「看我的余额」和「发全校的额度」
-             是同一个人读同一份规则。 -->
-        <RouterLink class="zf-navlink" :to="{ name: 'Billing' }">
-          积分与凭证
+
+        <!-- ★★ 设置：教师账号、积分与凭证都在 `/settings` 页里。
+             它们是「一学期动几次」的配置，不是每天的教学动线 ——
+             常驻一级会让顶栏里出现三项一年点两次的链接。 -->
+        <RouterLink class="zf-navlink" :to="{ name: 'Settings' }">
+          设置
         </RouterLink>
-        <!-- ★ 公共题审核（U14 题库双轨）：**仅平台管理员**。
-             队列里带「来源机构」，机构管理员看到就等于知道同行在交什么，
-             所以能力是 `platform.public.review`（L3），不是 `question.public.*`。 -->
+
+        <!-- ★ 公共题审核（U14 题库双轨）：**仅平台管理员**，保留一级。
+             理由是它不属于任何机构页面（机构管理员根本进不去），
+             平台管理员登录后只有这一件正事。 -->
         <RouterLink
           v-if="auth.can('platform.public.review')"
           class="zf-navlink"

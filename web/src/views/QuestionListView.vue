@@ -403,9 +403,25 @@ async function confirmDownload(): Promise<void> {
           </template>
         </p>
       </div>
-      <el-button v-if="!isPublic" type="primary" @click="createOpen = true">
-        新建题目
-      </el-button>
+      <!-- ★★ 二级入口（2026-10-23 导航分组）。
+           「导入题目」「难度打标」从顶栏一级收进「题库」菜单后，
+           这里必须各留一个入口：
+             1. 顶栏菜单是**划过即开**的，触屏用户不一定摸得到；
+             2. 用户真正的动线是「先看到库里有多少题，再决定要不要补」——
+                他已经在题库页上了，不该再回顶栏去找。
+           ★ 公共题库 Tab 下两个都不显示：公共题是别校提交、平台审核过的，
+             既不能导入到这里，也不能改它的难度档。 -->
+      <div v-if="!isPublic" class="zf-row">
+        <el-button @click="router.push({ name: 'ImportPaper' })">
+          导入题目
+        </el-button>
+        <el-button @click="router.push({ name: 'QuestionMarkDifficulty' })">
+          难度打标
+        </el-button>
+        <el-button type="primary" @click="createOpen = true">
+          新建题目
+        </el-button>
+      </div>
     </div>
 
     <!-- ★★ 题库双轨（v2.0）。两个 Tab 的**权限与动作完全不同**：
@@ -474,9 +490,26 @@ async function confirmDownload(): Promise<void> {
             <code>{{ stats.difficulty?.effective_mode }}</code>
             时，这个值<b>永远落不进区间</b>，于是练习一道也生不出来。
           </div>
+          <!-- ★★ 「去快速打标」是**问题驱动**的入口（2026-10-23）。
+               原来的文案写「点任意一题的详情 → 编辑即可补人工难度」——
+               那句在打标页做出来之前是对的，之后就成了**过时的指引**：
+               逐题进详情是一条一道走的路，而「还有 1200 道没标」的
+               现实场景需要的是「一屏一题、按 1–5 即前进」。
+               入口就该长在这个告警卡里：看到问题的地方，下一步就在这里。 -->
           <div class="diff-alert__act">
-            ★ 点任意一题的「详情 → 编辑」即可补人工难度
-            （它是<b>最高优先级</b>，会覆盖默认值）。
+            <el-button
+              size="small"
+              type="primary"
+              plain
+              @click="router.push({ name: 'QuestionMarkDifficulty' })"
+            >
+              去快速打标（还剩
+              {{ stats.difficulty?.unrated ?? 0 }} 道）
+            </el-button>
+            <span class="zf-dim" style="margin-left: 8px">
+              一屏一题、按 <b>1–5</b> 即前进，中途可离开再续标；
+              也可以逐题「详情 → 编辑」（人工值最高优先级，覆盖默认值）。
+            </span>
           </div>
         </div>
       </template>

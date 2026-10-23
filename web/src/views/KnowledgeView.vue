@@ -27,6 +27,10 @@ import { useRoute } from 'vue-router'
 import * as K from '@/api/knowledge'
 import MathText from '@/components/MathText.vue'
 import type { Course, CourseTree, KnowledgeEntry, KnowledgeNodeRow } from '@/api/knowledge'
+import { useAuthStore } from '@/stores/auth'
+
+/** 只用来控制「知识体系管理」入口的可见性（与顶栏菜单同一判据）。 */
+const auth = useAuthStore()
 
 const courses = ref<Course[]>([])
 const courseId = ref<number | undefined>(undefined)
@@ -286,6 +290,22 @@ function metricTag(n: KnowledgeNodeRow): {
         </p>
       </div>
       <div class="zf-row">
+        <!-- ★★ 二级入口（2026-10-23 导航分组）。
+             这两个动作原来在顶栏一级，现在收进「知识体系」菜单；
+             在落地页各留一个按钮，避免用户绕回顶栏。
+             ★ 与顶栏同一判据 `knowledge.node.manage`：课程与知识树是
+               全校共用资产，教师能改结构就等于编号能被随手改掉。
+             ★ 「知识点补标」放前面：它是**导致**下面「零题知识点」告警
+               的那个动作，看到问题的人下一步就想补，动线最短。 -->
+        <el-button @click="$router.push({ name: 'QuestionMarkKnowledge' })">
+          知识点补标
+        </el-button>
+        <el-button
+          v-if="auth.can('knowledge.node.manage')"
+          @click="$router.push({ name: 'KnowledgeManage' })"
+        >
+          知识体系管理
+        </el-button>
         <el-select
           v-model="courseId"
           placeholder="选择课程"
@@ -375,12 +395,28 @@ function metricTag(n: KnowledgeNodeRow): {
               有题但条目少于门槛 —— <b>AI 生题会被 L1 闸门拦下</b>
             </div>
           </div>
+          <!-- ★★ 零题知识点是「知识点补标」的靶子（2026-10-23）。
+               这一格显示的数字，正好就是补标页要消灭的数字：
+               先看到「21 个点一道题都没有」，下一步就该去补，
+               所以按钮长在这里，而不是让用户自己回顶栏找。
+               ★ 只在**有问题时**出现：数量为 0 时给一个「去补标」按钮，
+                 等于让老师去干一件已经干完的事。 -->
           <div class="probs" :class="{ 'probs--ok': !zeroQuestion.length }">
             <div class="probs__n">{{ zeroQuestion.length }}</div>
             <div class="probs__t">零题知识点</div>
             <div class="probs__d">
               组卷按知识点抽题时<b>永远抽不到</b>这些点
             </div>
+            <el-button
+              v-if="zeroQuestion.length"
+              size="small"
+              text
+              type="primary"
+              class="probs__act"
+              @click="$router.push({ name: 'QuestionMarkKnowledge' })"
+            >
+              去补标 ›
+            </el-button>
           </div>
         </div>
       </div>
@@ -826,6 +862,13 @@ function metricTag(n: KnowledgeNodeRow): {
   color: var(--zf-text-secondary);
   line-height: var(--zf-leading-loose);
   margin-top: 4px;
+}
+/* ★ 卡片内的入口按钮：`el-button--text` 自带 0 左右内边距会把它
+   顶到卡片边缘外，这里让它跟文字左对齐。 */
+.probs__act {
+  margin-top: 2px;
+  padding-left: 0;
+  padding-right: 0;
 }
 
 /* ── 主体两栏 ── */

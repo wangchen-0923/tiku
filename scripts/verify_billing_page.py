@@ -136,13 +136,20 @@ def check_wiring() -> None:
     api = _read(os.path.join(FRONT_DIR, "api", "billing.ts"))
     view = _read(os.path.join(FRONT_DIR, "views", "BillingView.vue"))
     router = _read(os.path.join(FRONT_DIR, "router", "index.ts"))
-    app = _read(os.path.join(FRONT_DIR, "App.vue"))
+    settings = _read(os.path.join(FRONT_DIR, "views", "SettingsView.vue"))
 
     # A1 页面与路由已注册
     check("路由注册 name: 'Billing'", "name: 'Billing'" in router)
     check("路由指向 BillingView.vue", "views/BillingView.vue" in router)
     check("路由路径 /billing", "path: '/billing'" in router)
-    check("导航含「积分与凭证」入口", "name: 'Billing'" in app)
+    # ★ 2026-10-23 导航收敛后，入口从顶栏移进「设置」页（`/settings`）。
+    #   判据跟着改：不再看 App.vue 有没有那一行链接，而是看设置页里
+    #   有没有指向 Billing 的条目 —— 否则这条断言会永远红。
+    check(
+        "设置页含「积分与凭证」入口",
+        "name: 'Billing'" in settings,
+        "SettingsView.vue 里找不到 Billing 条目",
+    )
 
     # A2 前端调用的每个路径都真实存在于后端 URLconf
     #

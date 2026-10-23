@@ -97,6 +97,20 @@ const router = createRouter({
       meta: { title: '知识体系管理', minLevel: LEVEL.SCHOOL },
     },
     {
+      // ★★ 设置（2026-10-23 导航收敛）。
+      //
+      //   一级导航只留核心模块，「教师账号」「积分与凭证」都收进这一页。
+      //   本页**只做分发**，不含任何表单：表单留在各自的原页面，
+      //   否则同一份校验规则会出现在两处并慢慢分叉。
+      //
+      //   `minLevel` 默认 TEACHER —— 学生没有 AI 调用与账号管理，
+      //   设置页对他没有一项可用。
+      path: '/settings',
+      name: 'Settings',
+      component: () => import('@/views/SettingsView.vue'),
+      meta: { title: '设置' },
+    },
+    {
       // ★★ 教师账号（2026-10-21 规则改版后新增）。
       //
       //   学校不再统一建班，职责收窄成「授权教师账号」——
@@ -105,6 +119,8 @@ const router = createRouter({
       //
       //   `minLevel: SCHOOL` 只让学校平台账户及以上进入；
       //   教师看不见这个菜单（他不需要给自己开账号）。
+      //   ★ 入口在「设置」页里，但路径仍是 `/settings/teachers`
+      //     （面包屑读起来就是「设置 › 教师账号」）。
       path: '/settings/teachers',
       name: 'TeacherAccounts',
       component: () => import('@/views/TeacherAccountsView.vue'),
