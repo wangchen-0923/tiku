@@ -41,6 +41,30 @@ def clear_legacy_sheet_data(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
+    #: ★★ 必须非原子（2026-10-26 实测）：全新库从零 `migrate` 会挂在这一步。
+    #:
+    #: 报错：`psycopg.errors.ObjectInUse: cannot ALTER TABLE "sheet_style"
+    #:       because it has pending trigger events`
+    #:
+    #: 原因链：
+    #:   1. 上一个迁移 `0003_seed_preset_styles` 往 `sheet_style` 插了 3 条预设
+    #:      （数据迁移，已提交）；
+    #:   2. 本迁移第一个操作 `clear_legacy_sheet_data` 把这几行 DELETE 掉，
+    #:      Django 的外键约束是 `DEFERRABLE INITIALLY DEFERRED`，检查要等到
+    #:      事务结束 —— 此刻事务内已积压「待触发事件」；
+    #:   3. 紧接着同一事务里 `ALTER TABLE sheet_style`（下面 40+ 个
+    #:      RemoveField/AlterField/AddConstraint）→ PostgreSQL 拒绝：
+    #:      有 pending trigger events 的表不允许 ALTER。
+    #:
+    #: ★ 为什么不能让开关库「碰巧正常」：开发库与已部署库早已应用过本迁移，
+    #:   Django 不会重跑，所以这个问题只在**全新环境**暴露 —— 也就是
+    #:   `docker compose up` 首启、CI 建空库、以及 U36 部署验收。
+    #:   2026-10-26 在新建的 `zhifou_migtest` 库上 100% 复现。
+    #:
+    #: ★ 为什么不用「拆成独立的数据迁移」：新迁移对已应用本迁移的库会被视为
+    #:   未应用而**重新执行 DELETE**，把现有的答题卡模板与绑定一起删掉。
+    #:   一次性的 `atomic = False` 只改变全新库的执行方式，对存量库零影响。
+    atomic = False
 
     dependencies = [
         ("media", "0004_asset_sha256"),
