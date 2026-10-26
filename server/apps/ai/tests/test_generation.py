@@ -484,6 +484,21 @@ def test_task_is_success_when_all_created(world, echo):
     assert run.result["created_count"] == 2
     assert len(run.result["question_ids"]) == 2
 
+    # ★★ `result.created` 必须带**清单摘要**。
+    #
+    #   queued 模式下前端只能从 `/api/v1/tasks/{id}/` 拿结果 ——
+    #   只有一串 id 的话，界面就是「#1234、#1235」，老师无法判断
+    #   这批题值不值得逐道打开，只能全点一遍。
+    #
+    #   ★ 但只能存**摘要**：`TaskRun` 是审计凭证，不是题目副本。
+    #     正文在 `question` 表，写全文会让任务表随生成次数线性膨胀，
+    #     拖慢每一次列表查询。
+    digest = run.result["created"]
+    assert len(digest) == 2
+    assert all("question_id" in c for c in digest)
+    assert all(c["stem"] for c in digest), "题干摘要不能为空"
+    assert all(len(c["stem"]) <= 80 for c in digest), "摘要必须是截断的，不是全文"
+
 
 def test_partial_when_some_duplicated(world, echo):
     """部分成功 → PARTIAL，且 `result.failed` 里能看到原因。"""

@@ -128,6 +128,21 @@ const RULES = {
   'paper.compose': { only: ['TEACHER'] },
   'paper.export': { only: ['TEACHER'] },
   'question.create': { only: ['TEACHER'] },
+  /**
+   * AI 生题。
+   *
+   * ★★ 这里与 `question.create` 的规则**故意不同**（`min` 而不是
+   *   `only: ['TEACHER']`），和后端 `GenerateQuestionView` 的
+   *   `IsTeacherAccount`（L1 及以上）保持一致。
+   *
+   *   不一致的代价是：后端允许、前端不给入口 —— 界面上"这个功能
+   *   不存在"，而接口文档里有。要么两边都放开，要么两边都收紧；
+   *   **只改一边会让排障的人怀疑自己看的是哪份代码**。
+   *
+   * ★ 如果产品上确定「生题只能教师做」（它消耗机构积分、往题库写题），
+   *   那要**同时**改后端视图的权限类，而不是只在这里加 `only`。
+   */
+  'ai.generate': { min: LEVEL.TEACHER },
   'question.public.submit': { min: LEVEL.TEACHER },
   'assignment.publish': { only: ['TEACHER'] },
   'grading.execute': { only: ['TEACHER'] },

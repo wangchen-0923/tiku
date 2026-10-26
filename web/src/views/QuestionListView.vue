@@ -22,6 +22,7 @@ import { useRoute, useRouter } from 'vue-router'
 
 import QuestionCreateDrawer from '@/components/QuestionCreateDrawer.vue'
 import QuestionDetailDrawer from '@/components/QuestionDetailDrawer.vue'
+import AiGenerateDrawer from '@/components/AiGenerateDrawer.vue'
 import { ApiError } from '@/api/http'
 import * as Q from '@/api/questionbank'
 import MathText from '@/components/MathText.vue'
@@ -119,6 +120,24 @@ const detailOpen = ref(false)
 const detailId = ref<number | null>(null)
 /** 新建抽屉 */
 const createOpen = ref(false)
+
+/**
+ * AI 生题抽屉。
+ *
+ * ★★ 为什么入口放在题库页，而不是单独开一个「AI 出题」菜单页：
+ *
+ *   老师做生题这件事的**上下文是题库** —— 他要先知道现在库里有什么、
+ *   什么题型缺、哪些知识点还没题。跳到一个独立的页面去做，
+ *   等于要求他先记住这些再过去。
+ *
+ *   ★ 生成结束后的下一步也在这里：「在题库里看这些草稿」、
+ *     点开某道题审阅（详情抽屉就在同页）。
+ *
+ * ★ 只在本校私有库 Tab 出现：公共题是别校提交、平台审核过的，
+ *   在这里「生成一批」既落不到公共库（生题恒落本机构 DRAFT），
+ *   也会让人以为生成了公共题。
+ */
+const aiOpen = ref(false)
 
 const DIFFICULTY_BANDS = [
   { value: '', label: '全部难度' },
@@ -231,6 +250,45 @@ function onCreated(id: number): void {
 function onDeleted(): void {
   void load()
   void loadStats()
+}
+
+/**
+ * AI 生题结束（有新题落库，或部分成功）。
+ *
+ * ★ 只刷新，**不擅自改筛选条件**。
+ *
+ *   生成的题恒为 `DRAFT`，而本页默认勾着「只显示可用于组卷的题」
+ *   —— 所以刷新后**看不到**刚生成的那几道。这是对的（草稿确实不能组卷），
+ *   但老师会以为「生成完题目不见了」。
+ *
+ *   解决办法不是偷偷把筛选改掉（那会打乱正在看别的列表的人），
+ *   而是在抽屉的结果区给一个明确的「在题库里看这些草稿」按钮 ——
+ *   **由老师决定什么时候切**。
+ */
+function onAiGenerated(): void {
+  void load()
+  void loadStats()
+}
+
+/** 抽屉里点了某道生成出来的题 → 用同页的详情抽屉打开它。 */
+function onAiOpenQuestion(id: number): void {
+  detailId.value = id
+  detailOpen.value = true
+}
+
+/**
+ * 「在题库里看这些草稿」—— 把筛选切到「草稿 + 不看可组卷限制」。
+ *
+ * ★ 两个字段必须**一起**改：
+ *   只取消 `onlyUsable` 的话，列表里会混着已通过的题，刚生成的那几道
+ *   散在中间不好找；只把 `status` 设成 DRAFT 而留着 `onlyUsable`，
+ *   则一道都不显示（`only_usable` 与 `DRAFT` 在语义上互斥）。
+ */
+function showAiDrafts(): void {
+  filters.onlyUsable = false
+  filters.status = 'DRAFT'
+  aiOpen.value = false
+  ElMessage.success('已切到「草稿」视图；审阅通过后才会进入可组卷的题')
 }
 
 /** 批量审核通过 */
@@ -417,6 +475,18 @@ async function confirmDownload(): Promise<void> {
         </el-button>
         <el-button @click="router.push({ name: 'QuestionMarkDifficulty' })">
           难度打标
+        </el-button>
+        <!-- ★★ AI 生题入口。
+             能力位 `ai.generate`（L1 起，与后端 `IsTeacherAccount` 一致）。
+             结果恒为**草稿**，所以它不是「新建」的快捷方式 ——
+             文案写「AI 生题」而不是「AI 新建」，因为它产出的是待审内容。 -->
+        <el-button
+          v-if="auth.can('ai.generate')"
+          type="success"
+          plain
+          @click="aiOpen = true"
+        >
+          AI 生题
         </el-button>
         <el-button type="primary" @click="createOpen = true">
           新建题目
@@ -735,6 +805,14 @@ async function confirmDownload(): Promise<void> {
       @deleted="onDeleted"
     />
     <QuestionCreateDrawer v-model="createOpen" @created="onCreated" />
+    <!-- ★ AI 生题：生成完的题可以在抽屉里直接点开审阅（复用本页的详情抽屉），
+         避免老师「生成 → 关抽屉 → 自己在题库里翻」来回找。 -->
+    <AiGenerateDrawer
+      v-model="aiOpen"
+      @generated="onAiGenerated"
+      @open-question="onAiOpenQuestion"
+      @show-drafts="showAiDrafts"
+    />
 
     <!-- 下载到本校：必须选接收课程（公共题的课程属于来源机构） -->
     <el-dialog v-model="downloadOpen" title="下载到本校私有库" width="520px">

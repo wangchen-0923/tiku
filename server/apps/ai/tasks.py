@@ -34,6 +34,39 @@ from apps.common.models import TaskKind, TaskRunStatus
 logger = logging.getLogger(__name__)
 
 
+def _result_from_summary(summary: dict[str, Any]) -> dict[str, Any]:
+    """把生成结果压成 `TaskRun.result`（只留摘要，**不存题干正文**）。
+
+    ★★ 为什么必须带 `created`（清单）而不是只存 `question_ids`：
+
+      queued 模式下前端**只能**从 `/api/v1/tasks/{id}/` 拿结果。
+      若这里只有一串 id，界面上就是「#1234、#1235、#1236」——
+      老师无法判断这批题值不值得逐道打开，只能全点一遍。
+      而 `created` 里本就是「题干前 80 字 + 难度 + 有无解析」，
+      刚好够一眼扫完。
+
+    ★ 为什么不存题干全文：`TaskRun` 是**审计凭证**，不是题目副本。
+      正文在 `question` 表。任务表随生成次数线性增长，
+      写全文会拖慢每一次列表查询，而列表根本不需要正文。
+
+    ★ 截到 20 条：`count` 上限是 10，留一倍余量防将来放宽。
+    """
+    return {
+        "created": list(summary.get("created") or [])[:20],
+        "created_count": summary.get("created_count", 0),
+        "failed_count": summary.get("failed_count", 0),
+        "question_ids": [
+            c["question_id"] for c in summary.get("created") or []
+        ],
+        "failed": (summary.get("failed") or [])[:20],
+        "call_log_id": summary.get("call_log_id"),
+        "provider": summary.get("provider", ""),
+        "model": summary.get("model", ""),
+        "cost_yuan": summary.get("cost_yuan", 0.0),
+        "kb_entry_ids": summary.get("kb_entry_ids") or [],
+    }
+
+
 @shared_task(
     name="apps.ai.tasks.generate_questions_task",
     # ★★ 必须**显式**写 False —— 不能靠「不写就默认关闭」。
@@ -104,20 +137,7 @@ def generate_questions_task(
             error = str(first.get("error") or "")[:300]
         task_runs.finish(
             run_id, status=status,
-            # ★ `created` 明细只留摘要：题目正文在 `question` 表，
-            #   `TaskRun.result` 只放「生成了哪几个 id」。整段题干写进来，
-            #   一张任务表的体积会随生成次数线性膨胀。
-            result={
-                "created_count": summary.get("created_count", 0),
-                "failed_count": summary.get("failed_count", 0),
-                "question_ids": [c["question_id"] for c in summary.get("created") or []],
-                "failed": (summary.get("failed") or [])[:20],
-                "call_log_id": summary.get("call_log_id"),
-                "provider": summary.get("provider", ""),
-                "model": summary.get("model", ""),
-                "cost_yuan": summary.get("cost_yuan", 0.0),
-                "kb_entry_ids": summary.get("kb_entry_ids") or [],
-            },
+            result=_result_from_summary(summary),
             error=error,
         )
         return summary
@@ -275,17 +295,7 @@ def _run_inline(
     first = (summary.get("failed") or [{}])[0]
     task_runs.finish(
         run_id, status=status,
-        result={
-            "created_count": summary.get("created_count", 0),
-            "failed_count": summary.get("failed_count", 0),
-            "question_ids": [c["question_id"] for c in summary.get("created") or []],
-            "failed": (summary.get("failed") or [])[:20],
-            "call_log_id": summary.get("call_log_id"),
-            "provider": summary.get("provider", ""),
-            "model": summary.get("model", ""),
-            "cost_yuan": summary.get("cost_yuan", 0.0),
-            "kb_entry_ids": summary.get("kb_entry_ids") or [],
-        },
+        result=_result_from_summary(summary),
         error=(str(first.get("error") or "")[:300]
                if status == TaskRunStatus.FAILED else ""),
     )
