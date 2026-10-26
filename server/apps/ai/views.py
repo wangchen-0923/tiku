@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import logging
 
+from django.utils import timezone
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -196,41 +197,65 @@ def _enqueue_generation(
     *, org_id: int, request_user, payload: dict, nodes, gate: dict,
     availability: dict,
 ) -> dict:
-    """把生题请求交给 `p1_generate` 队列。
+    """把生题请求交给 `p1_generate` 队列（或按配置同步执行）。
 
-    ★★ 这就是 06 文档里 `AiGenerationTask` 的位置。
+    ★★ 这一步在 U28c 之前是「只回一个受理凭据」（`wired: False`）——
+      因为缺「AI 输出 → `Question` 结构」的映射。现在那段逻辑在
+      `apps/ai/generation.py`，这里只负责投递与把结果整理成响应。
 
-      **诚实说明**：`ai` app 里**没有** `AiGenerationTask` 模型——
-      我查过 `apps.ai.models`，只有 `AICallLog` / `AIKnowledgeEntry`
-      之外的四个模型（`AICallLog` / `KBRetrievalLog` /
-      `AIPromptTemplate` / `AIFeedback`）。
+    ★ 两种形态由 `ZF_TASK_MODE` 决定，返回的 `summary` 形状**不同**：
 
-      而 05 文档 §4.2 的分支 B 要求返回 `task_id` + `status=PENDING`
-      + `queue`。一期要做到那个形态，需要一个任务表 + 一个 Celery 任务
-      + 一个「查任务状态」的接口——那是**阶段二后续**的工作量，
-      不是本轮能塞进来的。
+        inline（默认）→ `queued: false`，`created` / `created_count` 是真结果
+        queued        → `queued: true`，`created` 恒空、`created_count` 恒 0
 
-      ★ 所以本轮这里返回的是一个**可核验的受理凭据**，而不是
-        假装已经入队：`accepted=true` + 闸门证据 + 目标队列名。
-        真正的入队由 Celery 接线那一轮补上（`tasks.py` 目前是空壳）。
+      调用方（前端）必须按 `queued` 分叉。`queued` 下给
+      `created_count: 0` 之外任何数字都是假汇总 —— 界面会显示
+      「生成了 3 道题」，而其实队列里还没跑。
 
-        我选择如实返回「已通过闸门、待接线」而不是伪造一个
-        `task_id`——伪造的 `task_id` 会让前端开始轮询一个
-        永远不存在的任务，而排障时完全看不出问题在哪。
+    ★ HTTP 状态统一 202：inline 已完成，但前端按 202 去轮询
+      `/api/v1/tasks/{run_id}/` 能立刻查到终态，不会卡住。
+      改成 200 反而会让「两种模式同一条前端代码」需要额外分支。
     """
+    from apps.ai.tasks import dispatch_generate_questions
+
+    res = dispatch_generate_questions(
+        org_id=org_id,
+        operator_id=getattr(request_user, "id", None),
+        node_ids=[int(x) for x in payload["knowledge_node_ids"]],
+        question_type=payload["question_type"],
+        count=int(payload.get("count") or 1),
+        difficulty=payload.get("difficulty"),
+        stem_hint=payload.get("stem_hint") or "",
+        chapter_id=payload.get("chapter_id"),
+        max_cost_yuan=payload.get("max_cost_yuan"),
+    )
+    summary = res.get("summary") or {}
+    queued = bool(res.get("queued"))
+
     return {
         "accepted": True,
-        "queue": "p1_generate",
+        "wired": True,
+        "queued": queued,
+        "run_id": res.get("run_id"),
+        "task_id": res.get("task_id") or "",
         "task_type": "ai.generate_question",
-        "status": "PENDING",
-        "queued_at": None,
-        "wired": False,
-        "wired_note": (
-            "Celery 接线尚未完成：本接口已通过 L1 闸门与可用性检查，"
-            "但尚未真正入队。★ 任务表与进度端点已就位（U28b："
-            "`TaskRun` + `/api/v1/tasks/`），确定缺的是"
-            "「AI 输出 → 题目结构」的映射，见 `apps/ai/tasks.py` 顶部说明。"
-        ),
+        "queue": "p1_generate",
+        # ★ queued 下是 PENDING（真的还没跑），inline 下是终态
+        "status": "PENDING" if queued else (summary.get("status") or "OK"),
+        "queued_at": None if queued else timezone.now().isoformat(),
+        # ── 结果（queued 时恒空，见 docstring）──
+        "created": [] if queued else list(summary.get("created") or []),
+        "created_count": 0 if queued else int(summary.get("created_count") or 0),
+        "failed": [] if queued else list(summary.get("failed") or []),
+        "failed_count": 0 if queued else int(summary.get("failed_count") or 0),
+        "requested": int(payload.get("count") or 1),
+        "call_log_id": summary.get("call_log_id"),
+        "provider": summary.get("provider", ""),
+        "model": summary.get("model", ""),
+        "cost_yuan": summary.get("cost_yuan", 0.0),
+        "latency_ms": summary.get("latency_ms", 0),
+        "dispatch_fallback": res.get("dispatch_fallback", ""),
+        # ── 闸门与可用性证据（保留：老师能看到「凭什么允许生成」）──
         "knowledge_node_ids": [n.id for n in nodes],
         "knowledge_node_codes": [n.code for n in nodes],
         "question_type": payload["question_type"],
@@ -240,7 +265,7 @@ def _enqueue_generation(
         "kb_hit_count": gate["kb_hit_count"],
         "kb_min_entries": gate["kb_min_entries"],
         "availability_mode": availability["mode"],
-        "prompt_template_key": matcher_key(
+        "prompt_template_key": summary.get("prompt_template") or matcher_key(
             getattr(nodes[0], "subject", "") or "general",
             getattr(nodes[0], "grade_band", "") or "SECONDARY_VOCATIONAL",
             "generate_question",

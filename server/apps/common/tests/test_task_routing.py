@@ -116,22 +116,18 @@ def test_routes_only_point_to_declared_queues():
 def test_registered_business_task_count_is_honest():
     """★ 注册数量必须与「真的写了几个 task」一致。
 
-    12 个 `apps/*/tasks.py` 仍是**空壳**（只有 docstring + 未使用的 import），
-    autodiscover 扫过去什么都不注册。这条断言把「看起来有 16 个任务」
-    和「实际只有 3 个」的差距钉死，避免下次有人以为任务已经铺好了。
+    11 个 `apps/*/tasks.py` 仍是**空壳**（只有 docstring + 未使用的 import），
+    autodiscover 扫过去什么都不注册。这条断言把「看起来有 15 个任务」
+    和「实际只有 4 个」的差距钉死，避免下次有人以为任务已经铺好了。
 
     ★ 数量变化史（**每次加真实任务都要改这里**）：
       · U28a 实测 2 个（`analytics.recompute_mastery_task`、`omr.recognize_batch`）
       · U28b 加 1 个（`grading.auto_grade_assignment_task`，整班批改）
-
-    ★ 为什么 `ai` 仍不在这里：AI 生题缺的不是「接线」，
-      而是「生成结果 → 题目结构」的整个落地逻辑（`_enqueue_generation`
-      现在只发受理凭据）。在生成落地之前建 task，会得到一个
-      「能入队、能报进度、但生成不出题」的任务 ——
-      它比诚实的 `wired: False` 更糟，因为看起来是通的。
+      · U28c 加 1 个（`ai.generate_questions_task`，AI 生题落地）
     """
     names = _business_tasks()
     assert names == [
+        "apps.ai.tasks.generate_questions_task",
         "apps.analytics.tasks.recompute_mastery_task",
         "apps.grading.tasks.auto_grade_assignment_task",
         "apps.omr.tasks.recognize_batch",
@@ -139,7 +135,7 @@ def test_registered_business_task_count_is_honest():
 
 
 @pytest.mark.parametrize("empty_app", [
-    "accounts", "ai", "assignment", "audit", "ingest",
+    "accounts", "assignment", "audit", "ingest",
     "knowledge", "media", "org", "paper", "practice", "questionbank",
     "response", "sheet",
 ])
@@ -148,3 +144,31 @@ def test_placeholder_task_modules_register_nothing(empty_app):
     before = set(app.tasks)
     __import__(f"apps.{empty_app}.tasks", fromlist=["*"])
     assert set(app.tasks) == before, f"{empty_app}.tasks 里出现了任务定义，请更新清单"
+
+
+def test_ai_generate_goes_to_p1():
+    """AI 生题在 `p1_generate`：老师会盯着结果，但不能抢扫码识别的资源。"""
+    q = app.amqp.router.route({}, "apps.ai.tasks.generate_questions_task")
+    assert q["queue"].name == "p1_generate"
+
+
+def test_ai_generate_task_must_not_be_acks_late():
+    """★★ 生题**不能** `acks_late` —— 它不幂等。
+
+    ★ 这条测试防的是一个很隐蔽的失效：
+      `settings.CELERY_TASK_ACKS_LATE = True` 是**全局默认**，
+      所以任务装饰器里「不写 acks_late」等于**开启**它。
+      只看 `apps/ai/tasks.py` 的装饰器会以为没开。
+
+      开启后的后果：worker 被杀 → 消息重投 → 再调一次模型（花钱）
+      → 题库里多出一批几乎一样的题。老师不会知道是 worker 重启造成的。
+
+      与 `grading` 相反：批改可以重跑（`update_or_create` + 跳过人工定稿），
+      所以那边 `acks_late=True` 是对的。
+    """
+    from apps.ai.tasks import generate_questions_task as t
+
+    assert t.acks_late is False, (
+        "生题任务不能 acks_late —— 它不幂等，重投会重复生成并重复计费"
+    )
+    assert t.reject_on_worker_lost is False

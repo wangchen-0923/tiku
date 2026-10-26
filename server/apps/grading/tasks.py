@@ -265,11 +265,28 @@ def dispatch_auto_grade(
     )
 
     if not task_runs.is_queued():
-        # ── inline：与接线前完全一样，只是多了一条任务记录 ──
-        summary = run_auto_grade_batch(
-            run_id=run.id, org_id=org_id, assignment_id=assignment_id,
-            student_ids=sids, options=options,
-        )
+        # ── inline：与接线前完全一样，只多了一条任务记录 ──
+        #
+        # ★★ 必须兜住异常，否则会留一条永远 PENDING 的凭据。
+        #
+        #   凭据在 `create_run` 时就已经写库了。`run_auto_grade_batch`
+        #   内部逐生 `try/except`，所以「某个学生的数据脏」不会冒出来；
+        #   但**凭据之外**的异常会冒（参数错、连接断、`bump` 失败）。
+        #   异常一冒到视图，`TaskRun` 就永远停在 PENDING ——
+        #   `/api/v1/tasks/` 里出现一条幽灵行：老师看到「排队中」，
+        #   而队列里根本没有这个任务。
+        #
+        #   处理方式：先把凭据落成 FAILED，**再原样抛出**。
+        #   不吞异常是刻意的 —— 视图层要靠它决定给前端什么提示。
+        try:
+            summary = run_auto_grade_batch(
+                run_id=run.id, org_id=org_id, assignment_id=assignment_id,
+                student_ids=sids, options=options,
+            )
+        except Exception as exc:
+            task_runs.fail(
+                run.id, error=f"{type(exc).__name__}: {exc}"[:300])
+            raise
         if summary.get("cancelled"):
             task_runs.finish(
                 run.id, status=TaskRunStatus.CANCELLED, result=summary,
