@@ -136,6 +136,16 @@ def purge_org(o: Org) -> None:
     except Exception as exc:  # noqa: BLE001
         print(f"  !! 清理作业/试卷/题目失败: {exc}")
 
+    # ★ `TaskRun.org` 是 PROTECT：不清它，机构就删不掉。
+    #   而它又不会被 `Org.hard_delete()` 一起带走 —— 不显式删会留下
+    #   孤儿行，下一次 `GET /tasks/` 里出现「排队中」的幽灵任务。
+    from apps.common.models import TaskRun
+
+    try:
+        _raw(TaskRun.all_objects.filter(org_id=o.id))
+    except Exception as exc:  # noqa: BLE001
+        print(f"  !! 清理任务记录失败: {exc}")
+
     CreditHold.objects.filter(org_id=o.id).delete()
     CreditLedger.objects.filter(org_id=o.id).delete()
     CreditAccount.objects.filter(org_id=o.id).delete()
