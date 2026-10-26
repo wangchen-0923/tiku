@@ -199,24 +199,26 @@ def recalc_error_tag_stats(
 ) -> dict[str, Any]:
     """重算某次任务的**错因分布**。
 
-    ★★ 诚实地说明这个函数现在能算什么、不能算什么：
+    ★★ 现在能算什么（2026-10-26 U32 改口径后）：
 
-      `ErrorTag` 有六个取值（概念混淆／计算错误／审题失误／
-      单位缺失／公式记错／空白未答），但**判分侧从不产生标签**——
-      全项目搜过：只有模型定义与读取方，没有写入方。
-      `deduction_reasons` 里存的是 `{"detail": "选了 D，标准答案是 C"}`
-      这种**自由文本**，没有 `tag` 字段。
+      ① **「空白未答」由本函数自己算** —— 该生在这道题上没有作答记录。
+         这是唯一**不依赖任何判定**的错因，所以它由统计侧算而不是由
+         判分侧写标签：判分不一定跑过（老师可能只录分），而「没作答」
+         这个事实永远可以从数据里读出来。★ 两条路都算会重复计数。
 
-      → 所以这里**只算「空白未答」**这一种能客观判定的错因：
-        该生在这道题上**没有作答记录**。
+      ② **其余五类（概念混淆／计算错误／审题失误／单位缺失／公式记错）**
+         从 `deduction_reasons[].tag` 读，但**只认 `tag_source=TEACHER`**。
 
-      ★ 为什么不做文本猜测：从「选了 D，标准答案是 C」猜出
-        「概念混淆」是**编数据**。错因标签要由教师标注或 AI 判定，
-        那是独立功能（需要 `AIFeedback` + 教师确认），
-        不该在这里用关键词匹配糊出来。
+         ★★ 这是方案 B 的硬约束（2026-10-26 用户拍板）：AI 判的
+           **不计入正式统计**，只作为「待核实线索」在另一个查询里出现。
+           理由不是「不信任 AI」，而是「无人核对过的数字不该进报表」——
+           AI 猜错一次，学校就是拿一份错数据做教研决策，
+           而错因错的比空着更有害：空着大家知道还没做，错的会让人
+           以为问题就在这里。
 
-      ★ 如果将来判分侧开始产标签（`deduction_reasons[].tag`），
-        下面 `tags` 的收集逻辑会自动把它算进来——不用改结构。
+      ★ 采集质量原因（`tag_kind=CAPTURE`，如「涂点过浅」「同一题涂了多个
+        选项」）**一律不计入**：那不是学生不会，是这张卡没读准。
+        它们归 OMR 的「识别存疑」队列。（见 `apps/grading/error_tags.py`）
 
     ★ 触发源：`after_score_change`。★ 全班规模的汇总比单生重算贵，
       将来应移到 `p2_recompute` 队列异步跑。
@@ -280,6 +282,37 @@ def recalc_error_tag_stats(
                 key = (nid, ErrorTag.BLANK)
                 counters[key] = counters.get(key, 0) + 1
 
+    # ── 学习错因：**只认教师确认过的**（方案 B 的硬约束）──
+    from apps.grading import error_tags
+    from apps.grading.models import ScoreResult
+
+    pending = 0
+    skipped_invalid = 0
+    for pid, reasons in (
+        ScoreResult.objects.for_org(org_id)
+        .filter(assignment_id=assignment_id, paper_item_id__in=item_ids)
+        .values_list("paper_item_id", "deduction_reasons")
+    ):
+        # ★ 待核实的先数出来：它不参与统计，但界面要显示「还有 N 条
+        #   线索没核对」——否则老师不知道有东西等着他确认。
+        pending += len(error_tags.pending_ai_tags(reasons))
+
+        tags = error_tags.counted_tags(reasons)
+        if not tags:
+            continue
+        qid = qid_by_item.get(pid)
+        if qid is None:
+            continue
+        for tag in tags:
+            if not error_tags.valid_learning_tag(tag):
+                # ★ `deduction_reasons` 是 JSONField，写错的值**不报错**。
+                #   计进去会让「错因分布」出现英文原值或对不上筛选的孤儿行。
+                skipped_invalid += 1
+                continue
+            for nid in (nodes_by_q.get(qid) or [None]):
+                key = (nid, tag)
+                counters[key] = counters.get(key, 0) + 1
+
     total = sum(counters.values()) or 1
     scope.delete()
     n = 0
@@ -295,7 +328,19 @@ def recalc_error_tag_stats(
             calculated_at=t0,
         )
         n += 1
-    return {"tags": n, "note": "当前只统计「空白未答」（判分侧不产错因标签）"}
+    return {
+        "tags": n,
+        # ★ 待核实的 AI 线索数：**不参与统计**，但要报出来 ——
+        #   界面靠它显示「还有 N 条没核对」，否则老师不知道有活等着他。
+        "pending_ai": pending,
+        # ★ 非法标签数：JSON 字段零约束，写错的值会被静默丢弃。
+        #   报出来才有机会发现「某处写入用了不在枚举里的字符串」。
+        "skipped_invalid": skipped_invalid,
+        "note": (
+            "只统计「空白未答」与教师确认过的错因；"
+            "AI 判定的错因作为待核实线索，不计入正式统计"
+        ),
+    }
 
 #: 掌握度写入的量化精度
 MASTERY_Q = Decimal("0.001")

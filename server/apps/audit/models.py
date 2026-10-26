@@ -25,6 +25,17 @@ class AuditAction(models.TextChoices):
 
     SCORE_RESULT_MODIFY = "score_result.modify", "修改成绩"
     SCORE_RESULT_CONFIRM = "score_result.confirm", "确认成绩"
+    # ★★ 2026-10-26（U32）补登记：`A_SCORE_VOID` 早就在写，但不在 choices 里。
+    #   与下面 `response.superseded` 是同一类缺陷：DB 列是 varchar 照收，
+    #   而 `/audit/logs/actions/` 的下拉里没有它 —— 管理员**筛不出作废操作**，
+    #   列表里显示的也是英文码。作废一条评分是合规关注动作，尤其不能漏。
+    SCORE_RESULT_VOID = "score_result.void", "作废评分"
+    # ★ 错因标签（U32）。两个码分开，因为它们的**责任主体不同**：
+    #   `ai_judge` 是系统写的（operator 为空），`confirm` 是老师拍的。
+    #   合成一个码会让「这条错因是模型猜的、还是老师认的」在审计里消失 ——
+    #   而这正是方案 B 要区分的那件事。
+    ERROR_TAG_AI_JUDGE = "error_tag.ai_judge", "AI 错因判定"
+    ERROR_TAG_CONFIRM = "error_tag.confirm", "确认错因标签"
     QUESTION_DELETE = "question.delete", "删除题目"
     QUESTION_APPROVE = "question.approve", "审核题目"
     QUESTION_STATUS_CHANGE = "question.status_change", "题目状态变更"

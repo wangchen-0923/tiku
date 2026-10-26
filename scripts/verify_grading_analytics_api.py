@@ -361,6 +361,21 @@ def _run(org_id: int) -> int:
     check("★ 剩余待确认 0", d.get("needs_review_remaining") == 0, str(d))
 
     # 造一条 NEEDS_REVIEW（多涂）
+    #
+    # ★★ 2026-10-26（U32 复查）**这两条断言（G5 尾 + G6）的造数手法已确定过期**，
+    #    根因不是「多涂识别坏了」：
+    #
+    #      「多涂」在本系统里的载体是 `ScanCard.uncertain_items`
+    #      （`omr.validators.REASON_MULTI`），由 `auto_grade_assignment`
+    #      在进入逐题循环前统一前置。而下面这里造的是
+    #      `answer_normalized="AB"` + 直接调 `auto_grade_item()` ——
+    #      那条路**按设计**不产生 NEEDS_REVIEW（见该方法 docstring
+    #      里「识别存疑不在这里判」）。
+    #
+    #    所以修法只有一条：造一张真 ScanCard（需 ScanBatch / SheetTemplate /
+    #    Asset 三张表）再走整班批改。在补上之前，这两条保持红 ——
+    #    ★ 把断言改成「单题批改不产生待确认」会让它**永远绿**，
+    #      而那正是这个缺陷的保护色。
     ResponseService.record(
         org_id=org_id, assignment_id=a.id, student_id=stu.id,
         paper_item_id=items[0].id, source="SCAN_UPLOAD",

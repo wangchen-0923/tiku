@@ -42,6 +42,11 @@ class TaskKind(models.TextChoices):
 
     AUTO_GRADE = "AUTO_GRADE", "整班自动批改"
     AI_GENERATE = "AI_GENERATE", "AI 生题"
+    # ★ U32：批量错因判定。为什么它需要一条任务记录而不是同步跑完：
+    #   一次判定 = 一次模型调用。一个班 45 人 × 5 道错题 = 225 次调用，
+    #   同步跑必然超过网关 60s —— 那会重演「整班批改」踩过的坑：
+    #   老师看到超时、服务端还在跑、他再点一次，同一批判两遍（还花两遍钱）。
+    JUDGE_ERROR_TAG = "JUDGE_ERROR_TAG", "错因判定"
 
 
 class TaskRunStatus(models.TextChoices):

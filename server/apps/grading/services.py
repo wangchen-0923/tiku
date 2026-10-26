@@ -27,10 +27,12 @@ from decimal import Decimal
 from typing import Any, Iterable
 
 from django.db import transaction
+from django.db.models import F
 from django.utils import timezone
 
 from apps.audit.services import audit_log
 from apps.common.exceptions import ErrorCode, ValidationFailed, ZfError
+from apps.grading import error_tags
 from apps.grading.judge import (
     BlankConfig,
     GradingOutcome,
@@ -228,6 +230,22 @@ class GradingService:
         ★★ 为什么优先用快照：试卷定稿时已把答案固化。
           题库后来改了答案（纠正错误），**不应该**改变已考过的卷子的判分。
           用题库答案会让历史成绩悄悄变化——这是不可接受的。
+
+        ★★ **识别存疑（多涂 / 浅涂）不在这里判，这是刻意的分工。**
+
+          那个判断要读 `ScanCard.uncertain_items`，而它是「一张卡的某题」
+          的事实，不是「一道题」的事实。由 `auto_grade_assignment`
+          在进入本题循环**之前**统一前置，好处是：
+            · 一个学生的所有卡只查一次，不必每题查一遍
+            · 「存疑题根本不判分」这条能写成 `continue`，
+              而不是「先判分再覆盖」（那样会多两次非法状态跳变）
+
+          ★ 代价：**直接调用本方法的调用方拿不到存疑标记**。
+            目前只有整班批改在用它，而它自己在前面挡住了存疑题；
+            若将来有人新开一个「单题重批」入口，**必须**自己先调
+            `omr_uncertain_by_item()` —— 否则多涂题会被判成 0 分
+            自动通过，学生丢分且没人会去看（`verify_grading_analytics_api`
+            的 G5/G6 就是因为按旧口径造数才红的，见该脚本顶部说明）。
 
         返回 `None` 表示该题不能自动判（主观题），调用方走人工录分。
         """
@@ -852,7 +870,16 @@ class GradingService:
                 "method": GradingMethod.OMR_UNCERTAIN,
                 "confidence": None,
                 "graded_at": timezone.now(),
-                "deduction_reasons": [{"detail": detail, "tag": reason}],
+                # ★★ 必须标 `tag_kind=CAPTURE`：这里的 `tag` 是
+                #   `omr.validators.REASON_*`（「同一题涂了多个选项」
+                #   「涂点过浅」），属于**采集质量**问题，不是学习错因。
+                #
+                #   不标的话（本行原先只写 `tag`），它会被错因统计当成
+                #   学习错因读走 —— 于是「错因分布」里出现
+                #   「涂点过浅 37 次」，而真正该看的教学信息被挤掉。
+                "deduction_reasons": [
+                    error_tags.make_capture_tag(tag=reason, detail=detail)
+                ],
             },
         )
         transition(obj, ScoreState.NEEDS_REVIEW,
@@ -1066,3 +1093,473 @@ class GradingService:
             before=before, after={"state": obj.state}, reason=reason,
         )
         return obj
+
+# ══════════════════════════════════════════════════════════════
+#  ★★ 错因标签（U32）：AI 先判 + 老师一键审
+# ══════════════════════════════════════════════════════════════
+#
+#  口径表在 `apps/grading/error_tags.py`，本类只负责**写**。
+#
+#  两条不可让步的约束：
+#
+#   ① **AI 写的一律是线索**（`tag_source=AI`），`counted_tags()` 不收它。
+#      所以本类里调 AI 之后**不触发学情重算** —— 重算的结果不会变，
+#      触发它只会让老师看到「统计刷新了」却数字没动，反而怀疑没生效。
+#
+#   ② **老师确认过之后，AI 不许再改**（`SKIPPED_TEACHER_CONFIRMED`）。
+#      重判一次就把老师的结论盖掉，等于老师白点了一遍；
+#      而老师并不知道自己点过的东西被覆盖了。
+
+
+A_ERROR_TAG_AI = "error_tag.ai_judge"
+A_ERROR_TAG_CONFIRM = "error_tag.confirm"
+
+#: 一批判定最多跑多少题。
+#:
+#: ★ 45 人 × 25 题 = 1125 次模型调用，一次几分钱也是几十块，
+#:   而其中大半是「全班都错在同一处」——判 30 题已经足够看出模式。
+MAX_JUDGE_ITEMS = 60
+
+#: 单次判定的成本上限（元）。
+#: ★ 给上限是防「题面特别长 + 降级失败」时单个调用失控；
+#:   给得比预估高一档，否则有限制会变成「全部跳过候选」而判不出来。
+MAX_JUDGE_COST_YUAN = 0.05
+
+
+class ErrorTagService:
+    """错因标签的写入。★ 本项目里只有它写 `tag_kind=LEARNING` 的项。"""
+
+    # ── 内部：取题面 / 学生答案 ──
+    @staticmethod
+    def _brief(org_id: int, sr: ScoreResult) -> dict[str, Any]:
+        """取判定所需的题面信息。
+
+        ★ 优先用 `PaperItem.snapshot_json`：那是**学生考试当时看到的题**。
+          题目后来被编辑过（改数据、换选项）时，用 `Question` 的现值
+          去判一份旧答卷的错因，会判出一个学生根本没见过的问题。
+        """
+        from apps.paper.models import PaperItem
+        from apps.response.models import Response
+
+        item = (
+            PaperItem.objects.for_org(org_id)
+            .filter(pk=sr.paper_item_id)
+            .select_related("question", "question__course")
+            .first()
+        )
+        q = getattr(item, "question", None)
+        snap = (getattr(item, "snapshot_json", None) or {}) if item else {}
+
+        resp = (
+            Response.objects.for_org(org_id)
+            .filter(assignment_id=sr.assignment_id,
+                    student_id=sr.student_id,
+                    paper_item_id=sr.paper_item_id,
+                    superseded_by__isnull=True)
+            .first()
+        )
+        answer_json = (resp.answer_json if resp else {}) or {}
+        qtype = str(getattr(q, "type", "") or snap.get("type") or "")
+        if qtype == "FILL_BLANK":
+            student_answer = "；".join(
+                str(x) for x in (answer_json.get("blanks") or [])
+            ) or (resp.answer_normalized if resp else "")
+        else:
+            student_answer = (
+                (resp.answer_normalized or resp.answer_raw) if resp else ""
+            )
+
+        return {
+            "question_type": qtype,
+            "stem": str(
+                snap.get("stem_text")
+                or getattr(q, "stem_text", "")
+                or ""
+            ),
+            "answer": str(
+                snap.get("answer_text")
+                or getattr(q, "answer_text", "")
+                or ""
+            ),
+            "analysis": str(getattr(q, "explanation_text", "") or ""),
+            "student_answer": str(student_answer or ""),
+            "course_code": str(
+                getattr(getattr(q, "course", None), "code", "") or ""
+            ),
+            "grade_band": str(getattr(q, "grade_band", "") or ""),
+        }
+
+    # ── 判定（单条）──
+    @staticmethod
+    def judge_one(
+        *,
+        org_id: int,
+        score_result_id: int,
+        operator_id: int | None = None,
+        max_cost_yuan: float | None = None,
+    ) -> dict[str, Any]:
+        """让模型判一条错因，写 `tag_source=AI` 的线索。
+
+        返回 `{"status": ..., "tag": ..., "written": bool, "score": 小结}`。
+        ★ `status` 直通 `apps.ai.error_tag` 的状态码，**不在这里重新发明**
+          —— 多一套状态码就多一处要同步的地方。
+        """
+        from apps.ai import error_tag as ai_error_tag
+
+        sr = ScoreResult.objects.for_org(org_id).filter(
+            pk=score_result_id).first()
+        if sr is None:
+            raise ZfError(ErrorCode.COMMON_NOT_FOUND, detail="评分记录不存在")
+
+        # ★ 老师已经确认过 → 不改。见类注释 ②。
+        if error_tags.has_teacher_tag(sr.deduction_reasons):
+            return {
+                "status": "SKIPPED_TEACHER_CONFIRMED",
+                "tag": None,
+                "written": False,
+                "error": "",
+                "score": error_tags.summarize(sr.deduction_reasons),
+            }
+
+        brief = ErrorTagService._brief(org_id, sr)
+        out = ai_error_tag.judge(
+            org_id=org_id,
+            question_type=brief["question_type"],
+            stem=brief["stem"],
+            answer=brief["answer"],
+            student_answer=brief["student_answer"],
+            analysis=brief["analysis"],
+            course_code=brief["course_code"],
+            grade_band=brief["grade_band"],
+            score_result_id=sr.id,
+            operator_id=operator_id,
+            max_cost_yuan=(
+                max_cost_yuan if max_cost_yuan is not None
+                else MAX_JUDGE_COST_YUAN
+            ),
+        )
+
+        written = False
+        if out["status"] == ai_error_tag.STATUS_OK and out.get("tag"):
+            item = error_tags.make_learning_tag(
+                tag=out["tag"],
+                source=error_tags.SOURCE_AI,
+                confidence=out.get("confidence"),
+                note=out.get("reason") or "",
+            )
+            # ★ 只换掉旧的 **AI** 项：老师的结论、评语、采集原因都留着。
+            sr.deduction_reasons = error_tags.replace_learning_tags(
+                sr.deduction_reasons,
+                sources=(error_tags.SOURCE_AI,),
+                items=[item],
+            )
+            sr.save(update_fields=["deduction_reasons", "updated_at"])
+            written = True
+            audit_log.record(
+                A_ERROR_TAG_AI, sr, operator_id,
+                after={
+                    "tag": out["tag"],
+                    "confidence": out.get("confidence"),
+                    "call_log_id": out.get("call_log_id"),
+                },
+                reason="AI 错因判定（待核实线索，不计入统计）",
+            )
+
+        return {
+            "status": out["status"],
+            "tag": out.get("tag"),
+            "written": written,
+            "error": out.get("error") or "",
+            "confidence": out.get("confidence"),
+            "reason": out.get("reason") or "",
+            "call_log_id": out.get("call_log_id"),
+            "cost_yuan": out.get("cost_yuan") or 0.0,
+            # ★ 幂等命中要报出来：否则成本报表里「判了 30 条只花了 3 条的钱」
+            #   会看起来像计费漏了，而实际是同一份作答被复用了结论。
+            "from_cache": bool(out.get("from_cache")),
+            "score": error_tags.summarize(sr.deduction_reasons),
+        }
+
+    # ── 判定（批量，逐条独立）──
+    @staticmethod
+    def judge_batch(
+        *,
+        org_id: int,
+        score_result_ids: list[int],
+        operator_id: int | None = None,
+        on_item=None,
+    ) -> dict[str, Any]:
+        """逐条判定，**一条失败不影响其他条**。
+
+        `on_item(ok, payload)` 用于推进 `TaskRun` 进度（与
+        `run_auto_grade_batch` 的 `task_runs.bump` 同一约定）。
+        """
+        agg = {
+            "judged": 0,   # 判出了标签
+            "skipped": 0,  # 没作答 / 老师已确认
+            "no_tag": 0,   # 模型自述判不出来
+            "failed": 0,
+            "cost_yuan": 0.0,
+        }
+        items: list[dict[str, Any]] = []
+
+        for sid in score_result_ids:
+            ok = True
+            try:
+                r = ErrorTagService.judge_one(
+                    org_id=org_id, score_result_id=int(sid),
+                    operator_id=operator_id,
+                )
+                agg["cost_yuan"] += float(r.get("cost_yuan") or 0.0)
+                if r["written"]:
+                    agg["judged"] += 1
+                elif r["status"] in ("SKIPPED_TEACHER_CONFIRMED",
+                                    "SKIPPED_BLANK"):
+                    agg["skipped"] += 1
+                elif r["status"] == "NO_TAG":
+                    agg["no_tag"] += 1
+                else:
+                    agg["failed"] += 1
+                items.append({
+                    "score_result_id": int(sid),
+                    "status": r["status"],
+                    "tag": r.get("tag"),
+                })
+            except Exception as exc:  # noqa: BLE001
+                ok = False
+                agg["failed"] += 1
+                items.append({
+                    "score_result_id": int(sid),
+                    "status": "ERROR",
+                    "error": f"{type(exc).__name__}: {exc}"[:200],
+                })
+                logger.exception(
+                    "错因判定失败 org=%s score_result=%s", org_id, sid)
+            if on_item is not None:
+                on_item(ok, items[-1])
+
+        agg["cost_yuan"] = round(agg["cost_yuan"], 6)
+        agg["items"] = items[:80]
+        agg["total"] = len(score_result_ids)
+        return agg
+
+    # ── 教师确认 ──
+    @staticmethod
+    @transaction.atomic
+    def confirm(
+        *,
+        org_id: int,
+        score_result_id: int,
+        tags: list[str],
+        operator_id: int,
+        note: str = "",
+    ) -> dict[str, Any]:
+        """老师确认/修改错因。写 `tag_source=TEACHER`，**这一刻起才进统计**。
+
+        `tags` 为**空数组**是合法且重要的输入：它的意思是
+        「我看过了，这道题不属于这六类」——例如答题卡涂错、笔误。
+        ★ 必须与「还没人看」区分：前者 `pending_ai` 归零（老师看过），
+          后者原样留着等确认。所以本方法无论 `tags` 是否为空
+          **都会清掉 AI 线索**。
+        """
+        sr = ScoreResult.objects.for_org(org_id).select_for_update().filter(
+            pk=score_result_id).first()
+        if sr is None:
+            raise ZfError(ErrorCode.COMMON_NOT_FOUND, detail="评分记录不存在")
+
+        clean: list[str] = []
+        invalid: list[str] = []
+        for t in tags:
+            s = str(t or "").strip()
+            if not s:
+                continue
+            if not error_tags.valid_learning_tag(s):
+                invalid.append(s)
+                continue
+            if s not in clean:
+                clean.append(s)
+        if invalid:
+            # ★ 这里必须**报错**而不是静默丢弃：老师传上来的标签不在
+            #   `ErrorTag` 里，说明前端那份选项与后端不同步 ——
+            #   静默丢弃会让老师以为存上了，而统计里什么都没有。
+            raise ValidationFailed(
+                detail=f"不是有效的错因标签：{', '.join(invalid)}",
+                extra={"invalid": invalid},
+            )
+
+        ai_original = error_tags.ai_tag_of(sr.deduction_reasons)
+        before = error_tags.summarize(sr.deduction_reasons)
+
+        items = [
+            error_tags.make_learning_tag(
+                tag=t,
+                source=error_tags.SOURCE_TEACHER,
+                # ★ 只在**老师的选择与 AI 不同**时记 `ai_original`：
+                #   这是唯一能算「AI 错因判定准确率」的数据。
+                ai_original=ai_original if len(clean) == 1 else None,
+            )
+            for t in clean
+        ]
+        sr.deduction_reasons = error_tags.replace_learning_tags(
+            sr.deduction_reasons,
+            sources=(error_tags.SOURCE_AI, error_tags.SOURCE_TEACHER),
+            items=items,
+        )
+        sr.save(update_fields=["deduction_reasons", "updated_at"])
+
+        audit_log.record_strict(
+            A_ERROR_TAG_CONFIRM, sr, operator_id,
+            before=before,
+            after={
+                "confirmed_tags": clean,
+                "ai_original": ai_original,
+                "note": (note or "")[:200],
+            },
+            reason=note or "教师确认错因",
+        )
+
+        # ★★ 到这里**才**触发学情重算：确认过的才进统计（方案 B）。
+        #    AI 写入那一步刻意不重算，见类注释 ①。
+        recompute: dict[str, Any] = {"ok": False, "error": "not_run"}
+        try:
+            recompute = {
+                "ok": True,
+                **GradingService.after_score_change(
+                    org_id=org_id,
+                    student_id=sr.student_id,
+                    paper_item_ids=[sr.paper_item_id],
+                    assignment_id=sr.assignment_id,
+                    trigger="error_tag_confirm",
+                ),
+            }
+        except Exception as exc:  # noqa: BLE001
+            # ★ 统计重算失败不回滚确认动作：错因已经写下了，
+            #   统计是派生数据，下次重算会补上。吞掉异常但**必须报出来**。
+            recompute = {"ok": False, "error": str(exc)[:200]}
+            logger.exception(
+                "错因确认后学情重算失败 org=%s score_result=%s",
+                org_id, score_result_id)
+
+        return {
+            "score_result_id": sr.id,
+            "confirmed_tags": clean,
+            "ai_original": ai_original,
+            "score": error_tags.summarize(sr.deduction_reasons),
+            "recompute": recompute,
+        }
+
+    # ── 待核实线索（报告侧） ──
+    @staticmethod
+    def pending_count(*, org_id: int, assignment_id: int) -> int:
+        """某次任务还有多少条**待核实线索**。
+
+        ★ 单独一个计数函数，因为报告页要的是「N 条没核对」这个数字，
+          不需要把 N 条明细都查出来（`pending_list` 要 join 学生与题目）。
+        """
+        n = 0
+        for (reasons,) in (
+            ScoreResult.objects.for_org(org_id)
+            .filter(assignment_id=assignment_id)
+            .values_list("deduction_reasons")
+        ):
+            n += len(error_tags.pending_ai_tags(reasons))
+        return n
+
+    @staticmethod
+    def pending_list(
+        *, org_id: int, assignment_id: int, limit: int = 100
+    ) -> dict[str, Any]:
+        """某次任务的**待核实线索**（AI 判了、没人确认）。
+
+        ★ 与 `analytics` 的「错因分布」是两回事：
+          那边是正式统计（只含教师确认的 + 空白未答），
+          这边是待办清单。混在一张表里呈现，就是让老师
+          把未经核对的猜测当成结论。
+        """
+        rows: list[dict[str, Any]] = []
+        for sr in (
+            ScoreResult.objects.for_org(org_id)
+            .filter(assignment_id=assignment_id)
+            .select_related("student", "paper_item")
+            .order_by("paper_item__seq", "student_id")[:2000]
+        ):
+            pend = error_tags.pending_ai_tags(sr.deduction_reasons)
+            if not pend:
+                continue
+            for p in pend:
+                rows.append({
+                    "score_result_id": sr.id,
+                    "student_id": sr.student_id,
+                    "student_name": getattr(
+                        sr.student, "real_name", "") or "",
+                    "paper_item_id": sr.paper_item_id,
+                    "seq": getattr(sr.paper_item, "seq", None),
+                    "tag": str(p.get("tag")),
+                    "confidence": p.get("tag_confidence"),
+                    "note": p.get("tag_note") or "",
+                    "score": str(sr.score),
+                    "max_score": str(sr.max_score),
+                })
+                if len(rows) >= limit:
+                    break
+            if len(rows) >= limit:
+                break
+        return {
+            "assignment_id": assignment_id,
+            "count": len(rows),
+            "truncated": len(rows) >= limit,
+            "items": rows,
+            "note": (
+                "这些是系统判断的线索，**没有计入任何正式统计**。"
+                "老师确认后才会进入错因分布"
+            ),
+        }
+
+    # ── 批量判定：选哪几条（业务口径，不是纯查询） ──
+    @staticmethod
+    def judge_candidates(
+        *,
+        org_id: int,
+        assignment_id: int,
+        limit: int = 30,
+        paper_item_ids: list[int] | None = None,
+        score_result_ids: list[int] | None = None,
+    ) -> list[int]:
+        """挑出「值得让模型判」的评分记录 id。
+
+        四条筛选，每条都有代价可讲：
+
+          ① **只判错了的**（`score < max_score`）。答对的题没有错因可言，
+             送给模型它也会硬凑一个 —— 那是纯粹浪费钱且制造噪声。
+          ② **跳过已作废/未批的**。`PENDING` 还没有分，无所谓对错；
+             `VOID` 是无效记录，判了也没人看。
+          ③ **跳过老师已确认的**。老师的话比模型的话优先，
+             重复判只会覆盖风险（见 `judge_one` 的第二个约束）。
+          ④ **按题号排序**。老师核对时是顺着卷面看的，
+             乱序会让他来回翻。
+        """
+        from apps.common.constants import ScoreState
+
+        qs = (
+            ScoreResult.objects.for_org(org_id)
+            .filter(assignment_id=assignment_id)
+            .exclude(state__in=[ScoreState.PENDING, ScoreState.VOID])
+        )
+        if score_result_ids:
+            qs = qs.filter(pk__in=score_result_ids)
+        if paper_item_ids:
+            qs = qs.filter(paper_item_id__in=paper_item_ids)
+
+        out: list[int] = []
+        for row in (
+            qs.exclude(score=F("max_score"))
+            .order_by("paper_item__seq", "student_id")
+            .values_list("id", "deduction_reasons")[: max(1, limit) * 4]
+        ):
+            sid, reasons = row
+            if error_tags.has_teacher_tag(reasons):
+                continue
+            out.append(sid)
+            if len(out) >= limit:
+                break
+        return out

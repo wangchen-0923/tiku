@@ -124,12 +124,14 @@ def test_registered_business_task_count_is_honest():
       · U28a 实测 2 个（`analytics.recompute_mastery_task`、`omr.recognize_batch`）
       · U28b 加 1 个（`grading.auto_grade_assignment_task`，整班批改）
       · U28c 加 1 个（`ai.generate_questions_task`，AI 生题落地）
+      · U32 加 1 个（`grading.judge_error_tags_task`，批量错因判定）
     """
     names = _business_tasks()
     assert names == [
         "apps.ai.tasks.generate_questions_task",
         "apps.analytics.tasks.recompute_mastery_task",
         "apps.grading.tasks.auto_grade_assignment_task",
+        "apps.grading.tasks.judge_error_tags_task",
         "apps.omr.tasks.recognize_batch",
     ], names
 

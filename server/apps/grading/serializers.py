@@ -155,3 +155,53 @@ class ReviewStudentsQuerySerializer(serializers.Serializer):
         required=False, default=50, min_value=1, max_value=200)
     #: ★ `ensure_crops=0` 关掉按需切图（大班慢网时可关）
     ensure_crops = serializers.BooleanField(required=False, default=True)
+
+
+# ══════════════════════════════════════════════════════════════
+#  错因标签（U32）
+# ══════════════════════════════════════════════════════════════
+
+
+class ConfirmErrorTagSerializer(serializers.Serializer):
+    """教师确认错因输入。
+
+    ★ `tags` **允许为空数组**，这不是疏忽：
+      它的语义是「我看过了，这道题不属于这六类」（涂错卡、笔误）。
+      必须与「还没人看」区分——前者要把 AI 线索清掉，后者要留着。
+      所以这里 `required=True`（必须显式表态），但不设 `min_length`。
+    """
+
+    tags = serializers.ListField(
+        child=serializers.CharField(max_length=50),
+        required=True,
+        allow_empty=True,
+        help_text="确认的学习错因标签；空数组表示「不属于任何一类」",
+    )
+    note = serializers.CharField(
+        required=False, allow_blank=True, default="", max_length=500)
+
+
+class JudgeErrorTagSerializer(serializers.Serializer):
+    """批量 AI 判定输入。
+
+    ★ `score_result_ids` 与 `paper_item_ids` **二选一**，不能都传：
+      两者叠加时「判哪些题」的语义会耦合到无法解释
+      （是先按题筛再按记录筛？还是并集？）。
+    """
+
+    score_result_ids = serializers.ListField(
+        child=serializers.IntegerField(), required=False, allow_empty=True,
+    )
+    paper_item_ids = serializers.ListField(
+        child=serializers.IntegerField(), required=False, allow_empty=True,
+    )
+    limit = serializers.IntegerField(
+        required=False, min_value=1, max_value=200, default=30)
+
+    def validate(self, attrs):
+        sids = attrs.get("score_result_ids") or []
+        pids = attrs.get("paper_item_ids") or []
+        if sids and pids:
+            raise serializers.ValidationError(
+                "`score_result_ids` 与 `paper_item_ids` 只能传一个")
+        return attrs

@@ -124,6 +124,15 @@ SAMPLE_PAYLOAD: dict[str, dict] = {
         "answer": "ReL",
         "kb_entries": [{"id": 1, "content": "..."}],
     },
+    # ★ U32：错因判定读的是「学生写了什么」，前 11 个场景都没有这类输入
+    "judge_error_tag": {
+        "course_code": "JXJC",
+        "question_type": "CALCULATION",
+        "stem": "图示螺栓受 12kN 拉力，d1=10mm，求拉应力。",
+        "answer": "σ = F/A ≈ 152.8 MPa",
+        "student_answer": "σ = 12/(π×5²) = 0.153 MPa",
+        "analysis": "先换算单位再代入 σ=F/A。",
+    },
     "generate_question": {
         "subject": "机械基础",
         "difficulty_band": "MEDIUM",
@@ -181,9 +190,9 @@ def _run_checks(
     )
     have = set(actives.values_list("key", flat=True))
 
-    check("11 个场景全覆盖", expected == have,
+    check("12 个场景全覆盖", expected == have,
           f"缺 {sorted(expected - have)} 多 {sorted(have - expected)}")
-    check("场景数恰为 11", len(PROMPT_SCENES) == 11, str(len(PROMPT_SCENES)))
+    check("场景数恰为 12", len(PROMPT_SCENES) == 12, str(len(PROMPT_SCENES)))
     check(
         "场景清单 == ALL_TASKS - embed_text",
         set(PROMPT_SCENES) == (set(ALL_TASKS) - {"embed_text"}),
@@ -194,7 +203,7 @@ def _run_checks(
     for row in actives:
         per_key.setdefault(row.key, []).append(row)
     check("每场景恰好 1 条 ACTIVE",
-          all(len(v) == 1 for v in per_key.values()) and len(per_key) == 11,
+          all(len(v) == 1 for v in per_key.values()) and len(per_key) == 12,
           str({k: len(v) for k, v in per_key.items() if len(v) != 1}))
     check("全部 version=1", all(r.version == 1 for r in actives),
           str([(r.key, r.version) for r in actives if r.version != 1]))
@@ -271,7 +280,7 @@ def _run_checks(
         rendered = P.render_template(row, ctx)
         if rendered.missing:
             all_missing[task] = rendered.missing
-    check("11 个场景用典型 payload 渲染，缺变量为 0", not all_missing,
+    check("12 个场景用典型 payload 渲染，缺变量为 0", not all_missing,
           str(all_missing))
 
     # 变量真的被替换了（不是原样留着）
@@ -458,7 +467,11 @@ def _run_checks(
     call_command("seed_prompt_templates", stdout=buf, verbosity=0)
     after = AIPromptTemplate.objects.count()
     check("重跑 seed 不新建任何行", after == before, f"{before} → {after}")
-    check("重跑输出含「跳过 11」", "跳过 11" in buf.getvalue(), buf.getvalue()[-60:])
+    # ★ 数字随场景数增长：写死成 11 时，加第 12 个场景这条会红，
+    #   而它红的原因不是「seed 出问题」，是「这条断言自己过期了」。
+    _want = f"跳过 {len(PROMPT_SCENES)}"
+    check(f"重跑输出含「{_want}」", _want in buf.getvalue(),
+          buf.getvalue()[-60:])
 
     # 改内容但不加 --bump → 必须报冲突且不改库
     row = AIPromptTemplate.objects.get(

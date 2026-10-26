@@ -87,6 +87,7 @@ from apps.ai.providers import (  # noqa: E402
 )
 from apps.ai.routing import (  # noqa: E402
     ALL_TASKS,
+    GRADING_TASKS,
     CITATION_EXEMPT_TASKS,
     EXPENSIVE_TASKS,
     KB_IMPORT_TASKS,
@@ -275,10 +276,14 @@ def _run(org_id: int) -> int:
     # ★★ 这条断言是「有人往 ALL_TASKS 里塞了任务却忘了归类」的机械判据，
     #    所以每个分组的**数量**都写死在这里：加一个任务就必须改这一行。
     #    （P1-18c 新增了知识库导入组 `KB_IMPORT_TASKS`，1 个任务。）
-    check("任务全集 = 视觉 + 文本(7) + 检索(1) + 知识库导入",
-          len(ALL_TASKS) == len(VISION_TASKS) + 7 + 1 + len(KB_IMPORT_TASKS)
-          and "parse_kb_document" in KB_IMPORT_TASKS,
-          f"len={len(ALL_TASKS)} kb_import={sorted(KB_IMPORT_TASKS)}")
+    #    （U32 新增了批改后的学情判定组 `GRADING_TASKS`，1 个任务。）
+    check("任务全集 = 视觉 + 文本(7) + 检索(1) + 知识库导入 + 批改判定",
+          len(ALL_TASKS) == (len(VISION_TASKS) + 7 + 1
+                             + len(KB_IMPORT_TASKS) + len(GRADING_TASKS))
+          and "parse_kb_document" in KB_IMPORT_TASKS
+          and "judge_error_tag" in GRADING_TASKS,
+          f"len={len(ALL_TASKS)} kb_import={sorted(KB_IMPORT_TASKS)} "
+          f"grading={sorted(GRADING_TASKS)}")
     check("视觉任务在 p0_critical",
           queue_for("ocr_question") == "p0_critical")
     check("生成任务在 p1_generate",

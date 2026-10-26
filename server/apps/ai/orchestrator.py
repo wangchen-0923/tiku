@@ -168,6 +168,26 @@ def make_idem_key(
     return f"{task}:{business_id}:{prompt_version}"
 
 
+def forget_idempotent(req: AIRequest) -> bool:
+    """丢弃这个请求的幂等缓存。
+
+    ★★ 只给一种场景用：**模型的输出在业务层被判为不可用**。
+
+      幂等缓存在编排层只按「调用是否成功」记账，它不知道
+      业务层后面把 `{"tag": "CONCEPT_CONFUSION"}` 判成了非法值。
+      于是这份**垃圾输出**会被缓存住整个 TTL（默认 24h），
+      老师每次点「让 AI 再判一次」都拿到同一份垃圾 ——
+      表现为「重试按钮坏了」，而日志里只有一行「幂等命中」。
+
+      ★ 不缓存「模型说判不出来」那种正常结论：那是有效回答，
+        重问一遍既花钱也会得到同样的答案。
+    """
+    idem = normalize_idem_key(req)
+    if idem is None:
+        return False
+    return bool(cache.delete(f"{idem}:done"))
+
+
 # ══════════════════════════════════════════════════════════════
 #  编排器
 # ══════════════════════════════════════════════════════════════

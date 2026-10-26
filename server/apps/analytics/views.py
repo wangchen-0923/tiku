@@ -16,6 +16,8 @@
 
 from __future__ import annotations
 
+import logging
+
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -42,6 +44,8 @@ from apps.common.scoping import (
     assert_student_scope,
     filter_students_in_scope,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class _StudentScopedView(APIView):
@@ -267,20 +271,60 @@ class QuestionErrorView(APIView):
 
 
 class ErrorTagView(APIView):
-    """`GET /api/v1/analytics/error-tags/` 错因分布。"""
+    """`GET /api/v1/analytics/error-tags/` 错因分布（**正式统计**）。
+
+    ★★ 这张表里的数字**全部经过老师确认**（或者本来就是机器客观可算的
+      「空白未答」）。AI 判的线索一条都不在里面 —— 它们要在
+      `GET /grading/assignments/{id}/error-tag-candidates/` 里单独看。
+
+    ★ 所以响应用两个字段把这件事**说清楚**，而不是靠前端记得：
+
+        `pending_ai`  还有多少条线索没核对（明确标注：不计入本表）
+        `note`        本表口径的一句话
+
+      不把它们放在一起，就会出现「报表上概念混淆 12 次，而老师只确认了
+      3 次」这种没人能解释的差异 —— 那正是方案 B 要避免的。
+    """
 
     permission_classes = [IsAuthenticated, IsTeacherAccount]
 
     def get(self, request: Request) -> Response:
         org_id = _org_id(request)
         q = request.query_params
+        scope_type = q.get("scope_type") or None
+        scope_id = int(q["scope_id"]) if q.get("scope_id") else None
         rows = ErrorStatSelector.error_tags(
             org_id,
-            scope_type=q.get("scope_type") or None,
-            scope_id=int(q["scope_id"]) if q.get("scope_id") else None,
+            scope_type=scope_type,
+            scope_id=scope_id,
             limit=int(q.get("limit") or 50),
         )
-        return ok({"count": len(rows), "items": rows})
+
+        # ★ 待核实线索数只在「按某次任务收窄」时才算：
+        #   跨任务汇总时它没有单一分母，给个数反而会被误读成
+        #   「全校还有 N 条待核实」。
+        pending_ai = 0
+        if scope_type == "ASSIGNMENT" and scope_id:
+            from apps.grading.services import ErrorTagService
+
+            try:
+                pending_ai = ErrorTagService.pending_count(
+                    org_id=org_id, assignment_id=scope_id)
+            except Exception:      # noqa: BLE001 —— 计数失败不该让报表 500
+                logger.warning(
+                    "错因待核实计数失败 org=%s assignment=%s",
+                    org_id, scope_id)
+
+        return ok({
+            "count": len(rows),
+            "items": rows,
+            "pending_ai": pending_ai,
+            "pending_included": False,
+            "note": (
+                "本表只统计「空白未答」与教师确认过的错因；"
+                "AI 判定的线索不计入"
+            ),
+        })
 
 
 class ClassScoreDistributionView(_AssignmentScopedView):

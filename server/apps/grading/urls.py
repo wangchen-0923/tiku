@@ -10,10 +10,14 @@ from django.urls import path
 from apps.grading.views import (
     AutoGradeAssignmentView,
     ConfirmClassView,
+    ConfirmErrorTagView,
     ConfirmScoreView,
+    ErrorTagCandidateView,
     GradingProgressView,
     GradingRosterView,
     GradingStudentItemsView,
+    JudgeErrorTagView,
+    JudgeErrorTagsBatchView,
     ManualScoreView,
     ReviewCropView,
     ReviewItemsView,
@@ -35,6 +39,15 @@ urlpatterns: list = [
     path("scores/<int:pk>/confirm/", ConfirmScoreView.as_view(),
          name="score-confirm"),
     path("scores/<int:pk>/void/", VoidScoreView.as_view(), name="score-void"),
+    # ── ★ 错因标签（U32）：AI 判定 / 教师确认 ──
+    #   `ai-error-tag/` 产出**线索**（不计入统计）；
+    #   `error-tags/` 是老师确认（唯一进统计的入口）。
+    #   ★ 两个名字只差一个 `ai-`，是刻意的：它们在语义上是一件事的
+    #     两个阶段，路径相邻更容易让调用方看清「先判、后确认」。
+    path("scores/<int:pk>/ai-error-tag/",
+         JudgeErrorTagView.as_view(), name="score-ai-error-tag"),
+    path("scores/<int:pk>/error-tags/",
+         ConfirmErrorTagView.as_view(), name="score-error-tags"),
     # ── 按任务的批改动作 ──
     path("assignments/<int:pk>/auto-grade/",
          AutoGradeAssignmentView.as_view(), name="auto-grade"),
@@ -66,4 +79,12 @@ urlpatterns: list = [
          ReviewScoreView.as_view(), name="review-score"),
     path("assignments/<int:pk>/review/summary/",
          ReviewSummaryView.as_view(), name="review-summary"),
+    # ── ★ 错因标签（U32）──
+    #   ★★ 这里的 `error-tag-candidates/` **不是**错因分布。
+    #     错因分布在 `/api/v1/analytics/error-tags/`（只含教师确认 + 空白未答）。
+    #     两者混用会让「AI 猜的」直接变成报表结论 —— 正是方案 B 要挡的。
+    path("assignments/<int:pk>/ai-error-tags/",
+         JudgeErrorTagsBatchView.as_view(), name="ai-error-tags"),
+    path("assignments/<int:pk>/error-tag-candidates/",
+         ErrorTagCandidateView.as_view(), name="error-tag-candidates"),
 ]

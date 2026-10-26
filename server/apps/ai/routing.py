@@ -66,9 +66,22 @@ RETRIEVAL_TASKS: frozenset[str] = frozenset({"embed_text"})
 #:   产出是文本，走的是同一套文本模型与限流。
 KB_IMPORT_TASKS: frozenset[str] = frozenset({"parse_kb_document"})
 
+#: 批改后的学情判定类（U32 错因判定）。
+#:
+#: ★★ 为什么不塞进 `TEXT_TASKS`：那句定义是「只在**新建/编辑题目**阶段
+#:   使用（C5）」，而错因判定发生在**学生交了卷、机器/老师已经给过分之后**。
+#:   两者唯一的共同点是「输入输出都是文本」——把它算进 C5 的约束范围，
+#:   会让「AI 在题目编辑阶段之外介入了吗」这个问题失去可机械判定的答案。
+#:
+#: ★ 它也**不是**生成类：不产出新内容，只对既有作答下判断。
+#:   所以它的产出必须带 `tag_source=AI` 并且**不进正式统计**
+#:   （见 `apps/grading/error_tags.py`）。
+GRADING_TASKS: frozenset[str] = frozenset({"judge_error_tag"})
+
 #: 全部任务
 ALL_TASKS: frozenset[str] = (
     VISION_TASKS | TEXT_TASKS | RETRIEVAL_TASKS | KB_IMPORT_TASKS
+    | GRADING_TASKS
 )
 
 #: 「贵」任务：限流更严、额度优先级更低
@@ -90,6 +103,11 @@ CITATION_EXEMPT_TASKS: frozenset[str] = frozenset({
     #   否则 `citation_required()` 会为它返回 True，而没有任何代码
     #   真的去校验它的引用。
     "parse_kb_document",
+    # ★ `judge_error_tag`（U32）：判定依据是「题目 + 标准答案 + 学生答案」，
+    #   这三样都是**同一次批改里已经在手上的内容**，不需要检索知识库。
+    #   放进豁免名单是为了让口径自洽：否则 `citation_required()` 会为它
+    #   返回 True，而没有任何代码真的去校验它的引用。
+    "judge_error_tag",
 })
 
 
@@ -149,6 +167,12 @@ DEFAULT_ROUTES: dict[str, list[ModelRoute]] = {
     "parse_kb_document": [
         ModelRoute("echo", "text-strong", 2.0, 6.0),
         ModelRoute("echo", "text-fast", 0.5, 1.5),
+    ],
+    # ── 批改后的学情判定（U32）──
+    # ★ 用强模型：判错因要读懂「学生为什么这么写」，比润色难得多。
+    #   判错的代价也高——错因会直接指向老师的教学补救动作。
+    "judge_error_tag": [
+        ModelRoute("echo", "text-strong", 2.0, 6.0),
     ],
     # ── 检索类：向量化用最便宜的 ──
     "embed_text": [

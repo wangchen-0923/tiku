@@ -40,7 +40,7 @@ logger = logging.getLogger(__name__)
 #: 模板 key 前缀（06 文档 8.x 的命名空间）。
 KEY_PREFIX = "jxzc.secondary_vocational."
 
-#: 需要提示词的 **11 个场景**。
+#: 需要提示词的 **12 个场景**。
 #:
 #: ★ 这是 `routing.ALL_TASKS` **减去** `embed_text`：
 #:   向量化是纯数值计算，没有提示词可写。
@@ -58,6 +58,9 @@ PROMPT_SCENES: tuple[str, ...] = (
     "generate_question",      # AI 生题
     "kb_cite",                # 知识库引证
     "parse_kb_document",      # 文档拆条归类
+    # ★ 动线的最后一环（批改 → 分析）：前 11 个场景都发生在
+    #   「学生交卷之前」，只有它发生在**批改之后**，读的是学生写了什么。
+    "judge_error_tag",        # 错因判定
 )
 
 #: 缓存 TTL（秒）。★ 模板改动最迟这么久生效；

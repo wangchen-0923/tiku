@@ -622,3 +622,199 @@ class ReviewCropView(_AssignmentScopedView):
         resp["Cache-Control"] = "private, max-age=600"
         resp["X-Zf-Fallback"] = "PAGE"
         return resp
+
+
+# ══════════════════════════════════════════════════════════════
+#  ★★ 错因标签（U32）：AI 先判 + 老师一键审
+# ══════════════════════════════════════════════════════════════
+#
+#  四个端点分两类：
+#
+#    · 写：`ai-error-tags/`（批量让模型判）、`error-tags/`（老师确认）
+#    · 读：`error-tag-candidates/`（待核实线索清单）
+#
+#  ★★ 读的那一支**刻意不叫** `error-tags/`：
+#     它与 `GET /analytics/error-tags/`（正式错因分布）是两个东西。
+#     名字撞上之后，前端一定会有人接错，而接错的表现是
+#     「拿未经核对的猜测当统计结论」—— 恰恰是方案 B 要避免的事。
+
+
+def _require_score(request: Request, pk: int):
+    """取评分记录并校验教学数据作用域。
+
+    ★ 与 `ConfirmScoreView` 同样的两道检查，抽成函数是为了
+      两个新端点（判定 / 确认）不各写一遍 —— 少写一次就是
+      「新入职老师能看到全校成绩」那类缺陷的入口。
+    """
+    org_id = _org_id(request)
+    row = GradingSelector.get(org_id, pk)
+    if row is None:
+        raise ZfError(ErrorCode.COMMON_NOT_FOUND, detail="评分记录不存在")
+    assert_assignment_scope(request.user, row.assignment_id, what="这条评分")
+    return org_id, row
+
+
+class JudgeErrorTagView(APIView):
+    """`POST /api/v1/grading/scores/{id}/ai-error-tag/` 让模型判一条错因。
+
+    ★★ 产出是**待核实线索**（`tag_source=AI`），**不计入任何统计**。
+
+    ★ 老师已确认过的记录会返回 `SKIPPED_TEACHER_CONFIRMED` 而不是覆盖。
+      HTTP 仍是 200 —— 这不是错误，是「按设计没动」。用 4xx 会让前端
+      弹一个红框，老师以为判失败了。
+    """
+
+    permission_classes = [IsAuthenticated, IsTeacherAccount]
+
+    def post(self, request: Request, pk: int) -> Response:
+        from apps.grading.services import ErrorTagService
+
+        org_id, _row = _require_score(request, pk)
+        res = ErrorTagService.judge_one(
+            org_id=org_id, score_result_id=pk,
+            operator_id=request.user.id,
+        )
+        msg = {
+            "OK": "已生成错因线索（待老师确认后才进统计）",
+            "SKIPPED_BLANK": "学生没有作答，这一类由系统直接统计，无需 AI 判断",
+            "SKIPPED_TEACHER_CONFIRMED": "这道题老师已经确认过，未被覆盖",
+            "NO_TAG": "信息不足以判断错因，已如实留空",
+            "UNKNOWN_TAG": "模型返回了无法识别的错因，未采纳",
+            "FAILED": "AI 判定失败，可稍后重试",
+        }.get(res["status"], "已处理")
+        return ok(res, message=msg)
+
+
+class ConfirmErrorTagView(APIView):
+    """`PATCH /api/v1/grading/scores/{id}/error-tags/` 老师确认/修改错因。
+
+    ★★ 这是**唯一**能让错因进正式统计的入口。
+
+    ★ `tags: []` 是合法输入（「我看过了，不属于这六类」），
+      与「还没人看」必须区分：前者清掉 AI 线索，后者留着。
+    """
+
+    permission_classes = [IsAuthenticated, IsTeacherAccount]
+
+    def patch(self, request: Request, pk: int) -> Response:
+        from apps.grading.serializers import ConfirmErrorTagSerializer
+        from apps.grading.services import ErrorTagService
+
+        org_id, _row = _require_score(request, pk)
+        s = ConfirmErrorTagSerializer(data=request.data or {})
+        s.is_valid(raise_exception=True)
+        v = s.validated_data
+        res = ErrorTagService.confirm(
+            org_id=org_id, score_result_id=pk,
+            tags=list(v["tags"]), operator_id=request.user.id,
+            note=v.get("note", ""),
+        )
+        n = len(res["confirmed_tags"])
+        return ok(res, message=(
+            f"已确认 {n} 个错因，已计入正式统计" if n
+            else "已确认这道题不属于六类错因，未计入统计"
+        ))
+
+
+class JudgeErrorTagsBatchView(_AssignmentScopedView):
+    """`POST /api/v1/grading/assignments/{id}/ai-error-tags/` 批量判定。
+
+    ★ 不传 `score_result_ids` / `paper_item_ids` 时，自动挑
+      「这一批里答错的、老师还没确认过的」题（最多 `limit` 条）。
+      自动挑而不是全判：一个班 45 人 × 25 题 = 1125 次调用，
+      而其中大半是同一处错，判 30 条已经够看出模式。
+
+    ★★ 按 `ZF_TASK_MODE` 分叉：`queued` 时**不返回假汇总**
+      （`summary=None`），前端必须去轮询 `/api/v1/tasks/{run_id}/`。
+    """
+
+    permission_classes = [IsAuthenticated, IsTeacherAccount]
+
+    def post(self, request: Request, pk: int) -> Response:
+        from apps.grading.serializers import JudgeErrorTagSerializer
+        from apps.grading.services import MAX_JUDGE_ITEMS, ErrorTagService
+        from apps.grading.tasks import dispatch_judge_error_tags
+
+        org_id = _org_id(request)
+        s = JudgeErrorTagSerializer(data=request.data or {})
+        s.is_valid(raise_exception=True)
+        v = s.validated_data
+
+        sids = [int(x) for x in (v.get("score_result_ids") or [])]
+        pids = [int(x) for x in (v.get("paper_item_ids") or [])]
+        limit = min(int(v["limit"]), MAX_JUDGE_ITEMS)
+
+        if sids:
+            # ★ 显式指定时也要过一遍筛选：老师可能把答对的题也传进来，
+            #   判它没有意义（模型会硬凑一个错因）。
+            sids = ErrorTagService.judge_candidates(
+                org_id=org_id, assignment_id=pk, limit=limit,
+                score_result_ids=sids,
+            )
+        else:
+            sids = ErrorTagService.judge_candidates(
+                org_id=org_id, assignment_id=pk, limit=limit,
+                paper_item_ids=pids or None,
+            )
+
+        if not sids:
+            return ok({
+                "run_id": None, "task_id": "", "queued": False,
+                "candidates": 0, "summary": None,
+            }, message=(
+                "没有需要判定的题（可能都已确认过，或没有答错的题）"
+            ))
+
+        res = dispatch_judge_error_tags(
+            org_id=org_id, assignment_id=pk,
+            score_result_ids=sids,
+            created_by_id=getattr(request.user, "pk", None),
+        )
+
+        if res["queued"]:
+            return ok({
+                "run_id": res["run_id"],
+                "task_id": res["task_id"],
+                "queued": True,
+                "candidates": len(sids),
+                "summary": None,
+            }, message=(
+                f"已提交 {len(sids)} 条错因判定，可以关闭页面，"
+                f"稍后在任务进度里查看结果"
+            ))
+
+        summ = res["summary"] or {}
+        return ok({
+            "run_id": res["run_id"],
+            "task_id": "",
+            "queued": False,
+            "candidates": len(sids),
+            "summary": summ,
+            "dispatch_fallback": res.get("dispatch_fallback", ""),
+        }, message=(
+            f"已判定 {summ.get('judged', 0)} 条错因线索，"
+            f"{summ.get('skipped', 0)} 条无需判定，"
+            f"{summ.get('no_tag', 0)} 条信息不足；"
+            f"这些都还没进统计，请老师确认"
+        ))
+
+
+class ErrorTagCandidateView(_AssignmentScopedView):
+    """`GET /api/v1/grading/assignments/{id}/error-tag-candidates/`
+
+    **待核实线索**清单（AI 判了、没人确认）。
+
+    ★★ 与 `GET /api/v1/analytics/error-tags/` 是两个不同的东西：
+      那个是正式统计（只含教师确认的 + 空白未答），这个是待办清单。
+      前端的正确用法是「两张表分开显示」，不是把两者相加。
+    """
+
+    permission_classes = [IsAuthenticated, IsTeacherAccount]
+
+    def get(self, request: Request, pk: int) -> Response:
+        from apps.grading.services import ErrorTagService
+
+        org_id = _org_id(request)
+        limit = int(request.query_params.get("limit") or 100)
+        return ok(ErrorTagService.pending_list(
+            org_id=org_id, assignment_id=pk, limit=max(1, min(limit, 500))))

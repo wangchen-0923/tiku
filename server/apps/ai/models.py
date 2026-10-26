@@ -79,6 +79,15 @@ class AITask(models.TextChoices):
     #   的文本任务（`TEXT_TASKS` 那句注释：只在新建/编辑题目阶段使用），
     #   所以在 `routing.py` 里单独归到 `KB_IMPORT_TASKS`。
     PARSE_KB_DOCUMENT = "parse_kb_document", "文档拆条归类"
+    # ── 批改后的学情判定（U32）──
+    #
+    # ★ 它**不是**「编辑题目阶段」的文本任务（见 `TEXT_TASKS` 那句注释），
+    #   所以单独归 `routing.GRADING_TASKS`：输入是「题目 + 标准答案 +
+    #   学生答案」，产出是错因候选，既不读也不写题目。
+    #
+    # ★★ 产出**只是待核实线索**（`tag_source=AI`），不直接进统计。
+    #    见 `apps/grading/error_tags.py` 的口径表。
+    JUDGE_ERROR_TAG = "judge_error_tag", "错因判定"
 
     # ── 旧名别名（**只读**，新数据不许再写）──
     #

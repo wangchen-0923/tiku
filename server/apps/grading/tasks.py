@@ -339,3 +339,187 @@ def dispatch_auto_grade(
         "task_id": getattr(async_res, "id", ""),
         "summary": None,
     }
+
+
+# ══════════════════════════════════════════════════════════════
+#  ★★ 批量错因判定（U32）
+# ══════════════════════════════════════════════════════════════
+#
+#  为什么批量判定也要一条任务记录：
+#
+#    一次判定 = 一次模型调用。判 30 条就是 30 次串行调用，
+#    真实厂商下单次 2–5s，合计 1–2 分钟 —— 同步跑必然先超网关。
+#    而超时后的行为是**已经踩过一次的坑**：老师看到「请求失败」，
+#    服务端还在跑，他再点一次，同一批被判两遍（钱也花两遍）。
+#
+#  ★ 与整班批改共用同一份 `TaskRun` / `ZF_TASK_MODE` 约定。
+
+
+def run_judge_error_tags_batch(
+    *,
+    run_id: int | None,
+    org_id: int,
+    score_result_ids: list[int],
+    operator_id: int | None = None,
+) -> dict[str, Any]:
+    """逐条判定并汇总。★ 传 `run_id` 时每条推进一格进度。"""
+    from apps.grading.services import ErrorTagService
+
+    def _on_item(ok: bool, _payload: dict[str, Any]) -> None:
+        if run_id is not None:
+            task_runs.bump(run_id, ok=ok)
+        # ★ 这里**不做**取消检查，与整班批改不同：
+        #   一次判定只有几秒，而一批最多几十条，取消的意义不大；
+        #   反过来，在 `judge_batch` 的回调里抛「已取消」会走
+        #   `except` 分支把这条记成 failed —— 明明是主动取消，
+        #   却让终态变成「部分失败」。宁可让它跑完。
+
+    summary = ErrorTagService.judge_batch(
+        org_id=org_id,
+        score_result_ids=score_result_ids,
+        operator_id=operator_id,
+        on_item=_on_item,
+    )
+    return summary
+
+
+def _judge_status(summary: dict[str, Any]) -> str:
+    """由汇总判终态。
+
+    ★★ 「全部跳过」**不是失败**：一批里所有题都是「学生没作答」或
+      「老师已确认」，说明系统做对了事（没白花钱）。
+      报成 `FAILED` 会让老师以为功能坏了。
+    """
+    total = int(summary.get("total") or 0)
+    if total == 0:
+        return TaskRunStatus.SUCCESS
+    failed = int(summary.get("failed") or 0)
+    if failed == 0:
+        return TaskRunStatus.SUCCESS
+    if failed >= total:
+        return TaskRunStatus.FAILED
+    return TaskRunStatus.PARTIAL
+
+
+@shared_task(
+    # ★★ 任务名必须以 `apps.grading.tasks.` 开头，否则 `CELERY_TASK_ROUTES`
+    #   的通配匹配不到，会**静默**落到默认队列 `p1_generate`（V-33）。
+    name="apps.grading.tasks.judge_error_tags_task",
+    # ★ 幂等可重跑：`judge_one` 只覆盖**AI 来源**的项，
+    #   老师的结论、评语、采集原因都不动；重复判不会翻倍也不会改错。
+    acks_late=True,
+    reject_on_worker_lost=True,
+    ignore_result=True,
+)
+def judge_error_tags_task(
+    *, run_id: int, org_id: int, score_result_ids: list[int],
+    operator_id: int | None = None,
+) -> dict[str, Any] | None:
+    """异步批量错因判定。"""
+    from django.db import close_old_connections
+
+    close_old_connections()
+    try:
+        req = getattr(current_task, "request", None)
+        task_runs.start(
+            run_id,
+            celery_task_id=(getattr(req, "id", "") or "") if req else "",
+        )
+        summary = run_judge_error_tags_batch(
+            run_id=run_id, org_id=org_id,
+            score_result_ids=[int(x) for x in score_result_ids],
+            operator_id=operator_id,
+        )
+        task_runs.finish(run_id, status=_judge_status(summary), result=summary)
+        return summary
+    except Exception as exc:  # noqa: BLE001
+        # ★ 写 FAILED 后不再 raise：重投解决不了「余额不足/模型不可用」
+        #   这类原因，只会把队列反复堵住（与批改任务同一判断）。
+        logger.exception(
+            "错因判定任务失败 run=%s org=%s", run_id, org_id)
+        task_runs.fail(run_id, error=f"{type(exc).__name__}: {exc}")
+        return None
+    finally:
+        close_old_connections()
+
+
+def dispatch_judge_error_tags(
+    *,
+    org_id: int,
+    assignment_id: int,
+    score_result_ids: list[int],
+    created_by_id: int | None = None,
+) -> dict[str, Any]:
+    """按 `ZF_TASK_MODE` 决定同步判定还是投递。
+
+    返回::
+
+        {"run_id": 12, "queued": False, "task_id": "", "summary": {...}}
+        {"run_id": 13, "queued": True,  "task_id": "abc", "summary": None}
+
+    ★★ `summary` 在两种模式下形状不同，调用方**必须按 `queued` 分叉**。
+      让 queued 也返回 `{"judged": 0}` 的假汇总，界面会显示
+      「本次判定了 0 条」而其实还没开始跑（U28b 的教训）。
+    """
+    sids = [int(x) for x in score_result_ids]
+    run = task_runs.create_run(
+        org_id=org_id,
+        kind=TaskKind.JUDGE_ERROR_TAG,
+        created_by_id=created_by_id,
+        biz_type="assignment",
+        biz_id=assignment_id,
+        total=len(sids),
+        params={"assignment_id": assignment_id, "score_result_ids": sids},
+    )
+
+    if not task_runs.is_queued():
+        try:
+            summary = run_judge_error_tags_batch(
+                run_id=run.id, org_id=org_id, score_result_ids=sids,
+                operator_id=created_by_id,
+            )
+        except Exception as exc:
+            # ★ 必须把凭据落成 FAILED 再抛：否则 `/tasks/` 里留一条
+            #   永远 PENDING 的幽灵行，老师看到「排队中」而队列里没有它。
+            task_runs.fail(run.id, error=f"{type(exc).__name__}: {exc}"[:300])
+            raise
+        task_runs.finish(run.id, status=_judge_status(summary), result=summary)
+        return {
+            "run_id": run.id, "queued": False, "task_id": "",
+            "summary": summary,
+        }
+
+    try:
+        async_res = judge_error_tags_task.apply_async(
+            kwargs={
+                "run_id": run.id, "org_id": org_id,
+                "score_result_ids": sids, "operator_id": created_by_id,
+            },
+            retry=False,
+        )
+    except Exception as exc:  # noqa: BLE001
+        # ★ 投递失败 → 回退同步，而不是「受理了一个永远不跑的任务」。
+        logger.warning(
+            "错因判定投递失败，回退为同步执行 assignment=%s: %s",
+            assignment_id, exc,
+        )
+        summary = run_judge_error_tags_batch(
+            run_id=run.id, org_id=org_id, score_result_ids=sids,
+            operator_id=created_by_id,
+        )
+        fallback = str(exc)[:200]
+        task_runs.finish(
+            run.id, status=_judge_status(summary),
+            result={**summary, "dispatch_fallback": fallback},
+        )
+        return {
+            "run_id": run.id, "queued": False, "task_id": "",
+            "summary": summary, "dispatch_fallback": fallback,
+        }
+
+    return {
+        "run_id": run.id,
+        "queued": True,
+        "task_id": getattr(async_res, "id", ""),
+        "summary": None,
+    }

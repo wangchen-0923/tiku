@@ -444,11 +444,12 @@ try:
     celery_app.loader.import_default_modules()
     biz = sorted(n for n in celery_app.tasks
                  if not n.startswith(("celery.", "zhifou.celery.debug_task")))
-    check("D3 业务任务恰为 4 个（U28c 后 ai 生题已落地）",
+    check("D3 业务任务恰为 5 个（U32 后错因判定已落地）",
           biz == [
               "apps.ai.tasks.generate_questions_task",
               "apps.analytics.tasks.recompute_mastery_task",
               "apps.grading.tasks.auto_grade_assignment_task",
+              "apps.grading.tasks.judge_error_tags_task",
               "apps.omr.tasks.recognize_batch",
           ], biz)
 
