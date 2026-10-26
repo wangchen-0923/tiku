@@ -98,8 +98,12 @@ def check_celery_worker() -> dict:
 
 
 def task_mode() -> str:
-    """当前任务模式（`inline` / `queued`），与 `analytics.tasks.task_mode()` 同源。"""
-    from apps.analytics.tasks import task_mode as _mode
+    """当前任务模式（`inline` / `queued`）。
+
+    ★ 实现已下移到 `apps.common.task_runs`（U28b）：批改 / AI 生题 / 学情
+      三个消费者都要读它，放在任何一个业务 app 里都会让另外两个反向依赖。
+    """
+    from apps.common.task_runs import task_mode as _mode
 
     return _mode()
 

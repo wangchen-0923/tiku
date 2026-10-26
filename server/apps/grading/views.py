@@ -33,7 +33,6 @@ from apps.common.scoping import (
     assert_student_scope,
     scope_scores,
 )
-from apps.grading.judge import BlankConfig, MultiChoiceConfig
 from apps.grading.selectors import GradingSelector
 from apps.grading.serializers import (
     AutoGradeAssignmentSerializer,
@@ -44,6 +43,7 @@ from apps.grading.serializers import (
     VoidScoreSerializer,
 )
 from apps.grading.services import GradingService
+from apps.grading.tasks import dispatch_auto_grade
 
 logger = logging.getLogger(__name__)
 
@@ -170,65 +170,64 @@ class AutoGradeAssignmentView(_AssignmentScopedView):
                 "no_response": 0, "needs_review": 0, "failed": [],
             }, message="该任务下还没有已交卷的学生")
 
-        multi_cfg = MultiChoiceConfig(
-            allow_partial=v.get("allow_partial", False),
-            partial_factor=v.get("partial_factor", 0.5))
-        blank_cfg = BlankConfig()
-
-        total = {"graded": 0, "skipped_subjective": 0,
-                 "no_response": 0, "needs_review": 0}
-        failed: list[dict] = []
-        # ★★ 聚合**学情重算**的结果。
+        # ★★ 批改循环已抽到 `apps.grading.tasks.run_auto_grade_batch`
+        #    （U28b）。原因不是「整洁」：
+        #    同步与异步必须跑**同一份**循环，否则「界面点批改」和
+        #    「队列里跑的批改」会在某次改动后开始分叉 ——
+        #    而分叉的表现是「线上异步批的分比本地少几题」，极难发现。
         #
-        #   ★ 这个字段曾经被视图的白名单聚合**丢掉**了：
-        #     服务层返回 `recompute`，而视图只挑四个 key 相加，
-        #     于是「重算失败」这件事在界面上**完全看不见**。
-        #     而重算失败意味着掌握度/成绩汇总没写进去 ——
-        #     学情页会显示空白，老师只会以为「还没算」。
-        #
-        #   ★ `recompute` 是**派生数据**的重算结果：
-        #     部分失败不影响批改（分数已经判好了），
-        #     但必须**报出来**，否则没人知道学情为什么是空的。
-        recompute_ok = 0
-        recompute_failed: list[dict] = []
-        for sid in sids:
-            try:
-                r = GradingService.auto_grade_assignment(
-                    org_id=org_id, assignment_id=pk, student_id=sid,
-                    multi_cfg=multi_cfg, blank_cfg=blank_cfg,
-                    subject=v.get("subject") or None,
-                )
-                for k in total:
-                    total[k] += r.get(k, 0)
-                for f in r.get("failed", []):
-                    failed.append({**f, "student_id": sid})
-                rc = r.get("recompute") or {}
-                if rc.get("ok"):
-                    recompute_ok += 1
-                else:
-                    recompute_failed.append({
-                        "student_id": sid,
-                        "error": str(rc.get("error") or rc)[:200],
-                    })
-            except Exception as exc:      # noqa: BLE001
-                # ★ 逐生独立：一个学生的数据异常不该让整批回滚
-                failed.append({"student_id": sid, "error": str(exc)[:200]})
-                logger.exception("自动批改失败 assignment=%s student=%s",
-                                 pk, sid)
+        #    ★ `dispatch_auto_grade` 内部按 `ZF_TASK_MODE` 分叉：
+        #      inline（默认）→ 当场同步判完，返回结构与本轮之前一致；
+        #      queued        → 投 `p2_recompute`，返回 `task_id` 供轮询。
+        res = dispatch_auto_grade(
+            org_id=org_id,
+            assignment_id=pk,
+            student_ids=[int(x) for x in sids],
+            created_by_id=getattr(request.user, "pk", None),
+            options={
+                "allow_partial": v.get("allow_partial", False),
+                "partial_factor": v.get("partial_factor", 0.5),
+                "subject": v.get("subject") or "",
+            },
+        )
 
+        if res["queued"]:
+            # ★ 异步受理：**不返回假汇总**（见 dispatch 的 docstring）。
+            #   计数一律 0，前端必须去轮询 `GET /api/v1/tasks/{run_id}/`。
+            return ok({
+                "run_id": res["run_id"],
+                "task_id": res["task_id"],
+                "queued": True,
+                "students": len(sids),
+                "graded": 0, "skipped_subjective": 0,
+                "no_response": 0, "needs_review": 0,
+                "failed": [], "failed_count": 0,
+                "recompute_ok": 0, "recompute_failed": [],
+            }, message=(
+                f"已提交批改任务（{len(sids)} 名学生），可以关闭页面，"
+                f"稍后在任务进度里查看结果"
+            ))
+
+        summ = res["summary"]
         return ok({
-            "students": len(sids),
-            **total,
-            "failed": failed[:50],
-            "failed_count": len(failed),
-            "recompute_ok": recompute_ok,
-            "recompute_failed": recompute_failed[:50],
+            "run_id": res["run_id"],
+            "task_id": "",
+            "queued": False,
+            "students": summ["students"],
+            "graded": summ["graded"],
+            "skipped_subjective": summ["skipped_subjective"],
+            "no_response": summ["no_response"],
+            "needs_review": summ["needs_review"],
+            "failed": summ["failed"],
+            "failed_count": summ["failed_count"],
+            "recompute_ok": summ["recompute_ok"],
+            "recompute_failed": summ["recompute_failed"],
         }, message=(
-            f"已批改 {len(sids)} 名学生，"
-            f"{total['graded']} 题自动判分，"
-            f"{total['needs_review']} 题待人工确认"
-            + (f"；{len(recompute_failed)} 人学情重算失败"
-               if recompute_failed else "")
+            f"已批改 {summ['students']} 名学生，"
+            f"{summ['graded']} 题自动判分，"
+            f"{summ['needs_review']} 题待人工确认"
+            + (f"；{len(summ['recompute_failed'])} 人学情重算失败"
+               if summ["recompute_failed"] else "")
         ))
 
 

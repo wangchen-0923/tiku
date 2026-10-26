@@ -42,27 +42,36 @@
 from __future__ import annotations
 
 import logging
-import os
 from typing import Any, Iterable
 
 from celery import shared_task
+
+# ★ 执行形态的**唯一实现**在 common（U28b）；此处只是转发别名。
+from apps.common.task_runs import (
+    TASK_MODE_ENV as _TASK_MODE_ENV,
+    is_queued as _is_queued,
+    task_mode as _task_mode,
+)
 
 logger = logging.getLogger(__name__)
 
 #: 任务模式：`inline`（同步）/ `queued`（投递）。
 #:
-#: ★ 读环境变量而不是 Django settings：它是**部署形态**，不是业务配置；
-#:   用环境变量能让「同一份代码跑两种形态」而不改配置。
-TASK_MODE_ENV = "ZF_TASK_MODE"
+#: ★★ 实现已移到 `apps.common.task_runs`（U28b）：批改、AI 生题都要读它，
+#:    留在 analytics 会让另外两个 app 反向依赖「学情」这个业务模块。
+#:    这里保留同名符号**只是为了让 `verify_celery_wiring.py` 的
+#:    `T.task_mode()` / `T.is_queued()` 断言继续可用**，不是第二份实现。
+TASK_MODE_ENV = _TASK_MODE_ENV
 
 
 def task_mode() -> str:
-    """当前任务模式（`inline` / `queued`）。"""
-    return os.environ.get(TASK_MODE_ENV, "inline").strip().lower()
+    """当前任务模式（`inline` / `queued`）。转发到 `common.task_runs`。"""
+    return _task_mode()
 
 
 def is_queued() -> bool:
-    return task_mode() == "queued"
+    """是否投递队列。转发到 `common.task_runs`。"""
+    return _is_queued()
 
 
 @shared_task(

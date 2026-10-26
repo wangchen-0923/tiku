@@ -227,7 +227,9 @@ def _enqueue_generation(
         "wired": False,
         "wired_note": (
             "Celery 接线尚未完成：本接口已通过 L1 闸门与可用性检查，"
-            "但尚未真正入队（`apps/ai/tasks.py` 为空壳）。"
+            "但尚未真正入队。★ 任务表与进度端点已就位（U28b："
+            "`TaskRun` + `/api/v1/tasks/`），确定缺的是"
+            "「AI 输出 → 题目结构」的映射，见 `apps/ai/tasks.py` 顶部说明。"
         ),
         "knowledge_node_ids": [n.id for n in nodes],
         "knowledge_node_codes": [n.code for n in nodes],

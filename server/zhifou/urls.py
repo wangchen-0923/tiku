@@ -36,6 +36,10 @@ api_v1 = [
     #   放在 `/api/v1/workbench/` 而不是 `/api/v1/common/`：
     #   它是**教师端的界面数据**，不是一个「通用工具」命名空间。
     path("workbench/", include("apps.common.urls")),
+    # ★ 异步任务中心（U28b）：`/api/v1/tasks/{id}/` 是**前端轮询的唯一入口**。
+    #   独立命名空间而不是塞进各业务 app：批改与 AI 生题共用一个「进度」
+    #   概念，前端不该为两种任务写两套轮询逻辑。
+    path("tasks/", include("apps.common.task_urls")),
     # ★ 05 文档 1.3 节的认证路径是 `/api/v1/auth/...`（不是
     #   `/api/v1/accounts/auth/...`）。两组路径指向同一批视图，
     #   拆两个 urlconf 是为了让反查名字不冲突（见 `auth_urls.py`）。
