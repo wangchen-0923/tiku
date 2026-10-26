@@ -187,10 +187,18 @@ def main() -> int:
           cfg_u.fill_threshold_filled == 0.45)
 
     # 三档判定
+    #
+    # ★ 2026-10-26（U33）更正：`fill_threshold_empty` 已于 2026-10-21 由
+    #   0.15 标定为 **0.22**（22 张真实卡 / 660 题逐题回放，只切噪声不碰真浅涂，
+    #   见 `apps/omr/thresholds.PLATFORM_DEFAULTS` 的长注释）。
+    #   下面三条原本按 0.15 写死，改阈值后"0.15 → UNCERTAIN"必然红 ——
+    #   是**断言过期**，不是识别退化。边界改为 0.22，并补一条 0.21 证明确实是
+    #   "边界含"而不是"整段放宽"。
     check("0.50 → FILLED", cfg_u.classify(0.50) == "FILLED")
     check("0.45 → FILLED（边界含）", cfg_u.classify(0.45) == "FILLED")
     check("0.30 → UNCERTAIN", cfg_u.classify(0.30) == "UNCERTAIN")
-    check("0.15 → UNCERTAIN（边界含）", cfg_u.classify(0.15) == "UNCERTAIN")
+    check("0.22 → UNCERTAIN（边界含）", cfg_u.classify(0.22) == "UNCERTAIN")
+    check("0.21 → EMPTY（紧邻边界之下）", cfg_u.classify(0.21) == "EMPTY")
     check("0.10 → EMPTY", cfg_u.classify(0.10) == "EMPTY")
     check("★ 学号用更严的一档（0.48 < 0.50 → UNCERTAIN）",
           cfg_u.classify_student_no(0.48) == "UNCERTAIN"
@@ -386,11 +394,17 @@ def main() -> int:
         items[2], items[3], items[4],
     ]
     r = check_business_rules(items_no_mark, _no(), roster={"20260001"})
-    check("★ 规则1 单选 0 涂 → NEEDS_REVIEW",
-          r.card_status == "NEEDS_REVIEW", r.card_status)
+    # ★ 2026-10-26（U33）更正口径：**0 涂不再废整卡**。
+    #   `NO_MARK` 不在 `CARD_BLOCKING_REASONS` 里（见 `apps/omr/validators`）——
+    #   学生没涂是真实状态，不是识别存疑；密集漏填由规则 4（LOW_FILL_RATE）兜。
+    #   原断言写 `NEEDS_REVIEW`，是规则 10 还是「任一题存疑即整卡否决」时的口径。
+    #   那个口径在 batch 20 实测中把 21/22 张卡全拦了（6 张占比只有 3%–17%），
+    #   于 2026-10-21 改成占比制；本断言未同步，属过期。
+    check("★ 规则1 单选 0 涂 → 只标该题，不废整卡",
+          r.card_status == "AUTO_OK", r.card_status)
     check("规则1 flag 为 NO_MARK_Q2", "NO_MARK_Q2" in r.card_flags,
           str(r.card_flags))
-    check("规则1 该题进 uncertain_items", 2 in r.uncertain_items)
+    check("规则1 该题进 uncertain_items（前端留痕）", 2 in r.uncertain_items)
 
     # 规则 2：单选多涂 → 取最高者 + 进仲裁
     items_multi = [items[0],
@@ -401,8 +415,11 @@ def main() -> int:
     r = check_business_rules(items_multi, _no(), roster={"20260001"})
     check("★ 规则2 单选多涂 → 取填充率最高者",
           r.resolved_answers[2] == ["B"], str(r.resolved_answers.get(2)))
-    check("★ 规则2 仍必须进仲裁",
-          r.card_status == "NEEDS_REVIEW" and 2 in r.uncertain_items)
+    # ★ 多涂属 β，计入 `CARD_BLOCKING_REASONS`，但整卡是否进仲裁看**占比**：
+    #   本组 5 题里 1 题存疑 = 20% < `UNCERTAIN_RATIO_CAP`（1/3）→ 只标该题。
+    check("★ 规则2 该题进仲裁、整卡不废（1/5 < 1/3）",
+          r.card_status == "AUTO_OK" and 2 in r.uncertain_items,
+          f"{r.card_status} ratio={r.uncertain_ratio}")
     check("规则2 flag 含两个涂点",
           any("MULTI_MARK_Q2" in f and "A" in f and "B" in f
               for f in r.card_flags), str(r.card_flags))
@@ -502,10 +519,57 @@ def main() -> int:
                         ("C", 0.03, "EMPTY"), ("D", 0.02, "EMPTY")]),
                  items[2], items[3], items[4]]
     r = check_business_rules(items_unc, _no(), roster={"20260001"})
-    check("★ 规则10 含 UNCERTAIN → 该题进仲裁",
-          2 in r.uncertain_items and r.card_status == "NEEDS_REVIEW")
+    # ★ 同规则 2：单题 UNCERTAIN（β）只标该题，整卡是否进仲裁由占比决定。
+    #   本组 1/5 = 20% < 1/3 → AUTO_OK。原断言写死 NEEDS_REVIEW，属过期口径。
+    check("★ 规则10 含 UNCERTAIN → 该题进 uncertain_items",
+          2 in r.uncertain_items, str(r.uncertain_items))
+    check("★ 规则10 单题存疑不废整卡（1/5 < 1/3）",
+          r.card_status == "AUTO_OK",
+          f"{r.card_status} ratio={r.uncertain_ratio}")
     check("规则10 flag 为 UNCERTAIN_Q2",
           "UNCERTAIN_Q2" in r.card_flags, str(r.card_flags))
+
+    # ★ 补两条，锁住「占比制」本身：
+    #   只有 β（涂了但太浅）/ MULTI 才计入 `blocking`；α（主答案已确定、
+    #   旁边有浅痕）与 NO_MARK 都不计。所以要构造 β：**没有任何 filled、
+    #   但有 UNCERTAIN**，值取 0.35（< filled 0.45，≥ empty 0.22）。
+    items_ratio_high = [
+        _item(i, "SINGLE_CHOICE",
+              [("A", 0.35, "UNCERTAIN"), ("B", 0.05, "EMPTY"),
+               ("C", 0.04, "EMPTY"), ("D", 0.03, "EMPTY")])
+        for i in (1, 2, 3)
+    ] + [
+        _item(i, "SINGLE_CHOICE",
+              [("A", 0.80, "FILLED"), ("B", 0.05, "EMPTY"),
+               ("C", 0.04, "EMPTY"), ("D", 0.03, "EMPTY")])
+        for i in (4, 5)
+    ]
+    r = check_business_rules(items_ratio_high, _no(),
+                             roster={"20260001"})
+    check("★ 规则10 浅涂占比 3/5 超过 1/3 → 整卡进仲裁",
+          r.card_status == "NEEDS_REVIEW" and r.uncertain_ratio > 1 / 3,
+          f"{r.card_status} ratio={r.uncertain_ratio}")
+    check("规则10 占比过高时 flag 说明分子分母",
+          any(f.startswith("UNCERTAIN_RATIO_HIGH:3/5") for f in r.card_flags),
+          str(r.card_flags))
+
+    # ★ α 不计入 blocking：主答案已确定（有 filled）+ 旁边有浅痕 →
+    #   只留痕，占比必须还是 0。若这条被改回"计入"，整卡会被无意义的浅痕拖垮。
+    items_alpha_only = [
+        _item(1, "SINGLE_CHOICE",
+              [("A", 0.50, "FILLED"), ("B", 0.30, "UNCERTAIN"),
+               ("C", 0.03, "EMPTY"), ("D", 0.02, "EMPTY")]),
+    ] + [
+        _item(i, "SINGLE_CHOICE",
+              [("A", 0.80, "FILLED"), ("B", 0.05, "EMPTY"),
+               ("C", 0.04, "EMPTY"), ("D", 0.03, "EMPTY")])
+        for i in (2, 3, 4, 5)
+    ]
+    r = check_business_rules(items_alpha_only, _no(),
+                             roster={"20260001"})
+    check("★ 规则10 α 浅痕不计入占比（答案已由 filled 唯一确定）",
+          r.uncertain_ratio == 0.0 and r.card_status == "AUTO_OK",
+          f"{r.card_status} ratio={r.uncertain_ratio}")
 
     # ══════════════ O7 ★ 批次级重复 ══════════════
     print("\n【O7】★ 批次级规则 8/9（同一学生/学号多张卡）")

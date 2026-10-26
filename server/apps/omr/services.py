@@ -107,9 +107,23 @@ class ScanBatchService:
             raise ZfError(ErrorCode.COMMON_NOT_FOUND,
                           detail="答题卡不存在")
 
+        # ★ 模板快照只覆盖上传通道（单套快照，数值取上传通道平台默认）；
+        #   手机通道用自己更保守的一套，不被上传快照放宽。
+        from apps.omr.thresholds import (
+            CHANNEL_TO_CONFIG_KEY,
+            TEMPLATE_SNAPSHOT_CHANNEL,
+        )
+
         cfg = load_threshold_config(
             org_id=org_id, channel=capture_channel,
-            template_config={"omr_upload": tpl.threshold_config or {}},
+            template_config=(
+                {
+                    CHANNEL_TO_CONFIG_KEY[TEMPLATE_SNAPSHOT_CHANNEL]:
+                        tpl.threshold_config or {}
+                }
+                if capture_channel == TEMPLATE_SNAPSHOT_CHANNEL
+                else None
+            ),
         )
         b = ScanBatch.objects.create(
             org_id=org_id,

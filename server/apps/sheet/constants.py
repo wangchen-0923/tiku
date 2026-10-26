@@ -283,13 +283,23 @@ TEMPLATE_STATUS_CHOICES: Final[list[tuple[str, str]]] = [
     ("DEPRECATED", "已弃用"),
 ]
 
-#: 发布时写入模板的阈值快照（与 `apps.omr.thresholds` 的键同名）。
+#: 发布时写入模板的阈值快照（键名与 `apps.omr.thresholds.PLATFORM_DEFAULTS`
+#: 里 `omr_upload` 那一组**同名**）。
 #:
-#: ⚠ 这份快照目前**并不生效**：`load_threshold_config()` 是按
-#:   `template_config["omr_upload"]` 取值的，而本字典是**扁平**结构，
-#:   `.get("omr_upload")` 永远返回 None，于是模板级覆盖被静默跳过。
-#:   也就是说线上一直走的是 `omr.thresholds.PLATFORM_DEFAULTS`。
-#:   这里跟着同步数值，是为了将来修掉那个嵌套 bug 时不会「一修就回退」。
+#: ★ 结构是**扁平**的：这份 dict 代表「上传通道」这一套覆盖项，
+#:   不含 `{"omr_upload": {...}}` 那层壳。调用方负责包壳
+#:   （`apps.omr.pipeline.threshold_for()` 与 `apps.omr.services`）。
+#:
+#: ★★ 更正一条旧结论（2026-10-26，U33）：本文件此前写着
+#:   「这份快照并不生效，`.get("omr_upload")` 永远返回 None，模板级覆盖被静默跳过」。
+#:   实测**不成立** —— 调用方一直是包了壳再传的，模板级覆盖在生产是生效的。
+#:   真正的问题在别处：`load_threshold_config()` 收到**未包壳**的扁平 dict 时
+#:   会静默丢弃（无日志），机构级 `org.grading_config` 手填扁平时同样无声失效。
+#:   已在 `apps/omr/thresholds._channel_overrides()` 改为兼容两种形态并打 WARNING。
+#:
+#: ★ 这里的数值与 `PLATFORM_DEFAULTS["omr_upload"]` 保持一致，
+#:   但 `threshold_version` 不同（模板快照带自己的版本），
+#:   所以历史批次能区分「用的是模板快照还是平台默认」。
 DEFAULT_THRESHOLD_CONFIG: Final[dict] = {
     "fill_threshold_filled": 0.45,
     "fill_threshold_empty": 0.22,

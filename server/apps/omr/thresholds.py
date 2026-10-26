@@ -19,14 +19,28 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, replace
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 #: 通道 → 配置键
 CHANNEL_TO_CONFIG_KEY: dict[str, str] = {
     "PHONE_H5": "omr_phone",
     "UPLOAD": "omr_upload",
 }
+
+#: ★ 模板快照**只覆盖这一个通道**。
+#:
+#: 理由：`SheetTemplate.threshold_config` 是**单套**快照（发布时写入，
+#: 数值取上传通道的平台默认 0.45 / 0.22 / 0.50 / 0.15）。手机通道有
+#: 自己更保守的一套（`PLATFORM_DEFAULTS["omr_phone"]`，0.50 / 0.25 / 0.55 / 0.20）。
+#:
+#: ★★ 若把上传通道的快照套给手机通道，等于**放宽**手机识别门槛 ——
+#: 而这正是本模块开头警告的「两套阈值混用导致一方识别率劣化」。
+#: 所以调用方在 `channel != UPLOAD` 时**不要**传模板快照。
+TEMPLATE_SNAPSHOT_CHANNEL = "UPLOAD"
 
 #: 平台默认阈值（附录 F）。
 #:
@@ -182,6 +196,58 @@ def config_from_dict(d: dict[str, Any], *, version: str | None = None
     )
 
 
+def _channel_overrides(cfg: dict | None, key: str) -> dict[str, Any]:
+    """从可能**嵌套**或**扁平**的配置里取出「本通道」的覆盖项。
+
+    ★★ 为什么必须兼容两种形态（U33）：
+
+      历史上 `SheetTemplate.threshold_config` 存的是**扁平**快照
+      （`{"fill_threshold_filled": 0.45, ...}`），而 `load_threshold_config`
+      只认嵌套（`{"omr_upload": {...}}`）。原实现是：
+
+          merged.update(template_config.get(key) or {})
+
+      扁平 dict 的 `.get("omr_upload")` 恒为 `None`，`or {}` 一兜 ——
+      **整份配置被静默丢弃，没有任何日志**。同一形状在机构级
+      `org.grading_config` 上同样成立：管理员手填扁平结构，配置无声失效。
+
+      ★ 这类「查表 + `or` 默认值」的静默降级在本项目已经踩过多次
+        （见 `14-缺陷登记册`）：键名对不上永远不抛错，只表现为
+        「配置改了没效果」。
+
+    三态判别（顺序不可调）：
+
+      1. 有 `key` 且是 dict  → 规范形态，直接用；
+      2. 没 `key`、但带了**另一个通道**的键 → 这是完整的双通道结构，
+         本通道确实没有覆盖，返回空（**不要**把另一通道的键搬过来，
+         那会造成两套阈值混用，正是文档开头警告的劣化场景）；
+      3. 其余 → 视为单通道扁平快照，只取本通道认识的键。
+
+    ★ 扁平形态会打 WARNING：它能工作，但不是规范形态，
+      将来加通道时最容易在这里漏。**不静默**。
+    """
+    if not cfg:
+        return {}
+
+    nested = cfg.get(key)
+    if isinstance(nested, dict):
+        return nested
+
+    other_keys = {v for v in CHANNEL_TO_CONFIG_KEY.values() if v != key}
+    if any(isinstance(cfg.get(k), dict) for k in other_keys):
+        return {}
+
+    known = set(PLATFORM_DEFAULTS[key])
+    flat = {k: v for k, v in cfg.items() if k in known}
+    if flat:
+        logger.warning(
+            "阈值配置是扁平结构（%s），已按 %s 通道解释；"
+            "建议改成 {\"%s\": {...}} 嵌套形态",
+            sorted(flat), key, key,
+        )
+    return flat
+
+
 def load_threshold_config(
     *, org_id: int | None = None, channel: str = "UPLOAD",
     org_config: dict | None = None, template_config: dict | None = None,
@@ -196,6 +262,9 @@ def load_threshold_config(
     ★ 合并是**逐键**的，不是整体替换：
       模板只覆盖 `fill_threshold_filled` 时，其余项仍取机构/平台值。
       整体替换会让模板作者被迫写全所有键，必然漏。
+
+    ★★ 输入形态：嵌套（`{"omr_upload": {...}}`）与扁平（`{...}`）
+      都接受，由 `_channel_overrides()` 判别。扁平形态会打 WARNING。
     """
     key = CHANNEL_TO_CONFIG_KEY.get(channel)
     if key is None:
@@ -211,12 +280,10 @@ def load_threshold_config(
 
         row = Org.objects.filter(pk=org_id).only("grading_config").first()
         org_config = (row.grading_config if row else None) or {}
-    if org_config:
-        merged.update(org_config.get(key) or {})
+    merged.update(_channel_overrides(org_config, key))
 
     # 模板级（最高）
-    if template_config:
-        merged.update(template_config.get(key) or {})
+    merged.update(_channel_overrides(template_config, key))
 
     return config_from_dict(merged)
 

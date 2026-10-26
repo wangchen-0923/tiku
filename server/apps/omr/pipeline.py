@@ -49,12 +49,28 @@ def threshold_for(
     org_id: int | None = None,
     channel: str = "UPLOAD",
 ) -> ThresholdConfig:
-    """模板快照优先；缺失项回落到机构/平台默认。"""
-    from apps.omr.thresholds import load_threshold_config
+    """模板快照优先；缺失项回落到机构/平台默认。
+
+    ★ 模板快照是**单套**的，只作用于上传通道（见
+      `thresholds.TEMPLATE_SNAPSHOT_CHANNEL`）。手机通道走自己更保守的
+      平台默认，不能被上传快照覆盖。
+    """
+    from apps.omr.thresholds import (
+        CHANNEL_TO_CONFIG_KEY,
+        TEMPLATE_SNAPSHOT_CHANNEL,
+        load_threshold_config,
+    )
+
+    template_config = None
+    if channel == TEMPLATE_SNAPSHOT_CHANNEL:
+        template_config = {
+            CHANNEL_TO_CONFIG_KEY[TEMPLATE_SNAPSHOT_CHANNEL]:
+                template_threshold or {}
+        }
 
     return load_threshold_config(
         org_id=org_id, channel=channel,
-        template_config={"omr_upload": template_threshold or {}},
+        template_config=template_config,
     )
 
 
