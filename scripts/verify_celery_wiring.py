@@ -115,6 +115,11 @@ section("C2 · 任务注册与命名")
 # ══════════════════════════════════════════════════════════════
 
 from apps.analytics import tasks as T  # noqa: E402
+from apps.omr import tasks as _omr_tasks  # noqa: E402
+
+from fnmatch import fnmatch  # noqa: E402
+
+_omr_task = _omr_tasks.recognize_batch_task
 
 check("★★ 任务名是**全路径**（不是 `tasks.foo` 那种散名）——"
       "路由表按模块前缀匹配，散名会路由不到",
@@ -141,6 +146,68 @@ try:
           f"已注册 {len(names)} 个 apps.* 任务")
 except Exception as e:  # noqa: BLE001
     check("★ Celery app 可加载", False, f"{type(e).__name__}: {e}")
+
+# ── 2026-10-26（U28）补：`omr` 的路由曾经是错的 ──
+#
+# 原来 `omr/tasks.py` 写 `name="omr.recognize_batch"`，而 routes 的键是
+# `apps.omr.tasks.*`。路由按**任务名** fnmatch，对不上 → 落到默认队列
+# `p1_generate`（AI 生成）。于是扫码识别（用户当面等结果）排在批量出题后面，
+# 而 `p0_critical` 一条消息都收不到 —— 白配一个队列，**日志里零异常**。
+# 本组三条是那个缺陷的回归哨兵。
+check("★★ 扫码识别任务名带 `apps.omr.tasks.` 前缀（否则路由匹配不到）",
+      _omr_task.name == "apps.omr.tasks.recognize_batch",
+      _omr_task.name)
+_r_omr = celery_app.amqp.router.route({}, _omr_task.name)
+check("★★★ 扫码识别 → `p0_critical`（用户当面等结果，必须最高优先级）",
+      _r_omr["queue"].name == "p0_critical",
+      _r_omr["queue"].name)
+_r_old = celery_app.amqp.router.route({}, "omr.recognize_batch")
+check("★★ 旧任务名不再被路由表命中（若命中说明改名没生效）",
+      _r_old["queue"].name == "p1_generate",
+      _r_old["queue"].name)
+
+_unmatched = [
+    n for n in names
+    if not any(fnmatch(n, p) for p in routes)
+]
+check("★★ 每个 `apps.*` 任务都能被某条 routes 键匹配"
+      "（不匹配 = 静默落默认队列 = 语义错）",
+      not _unmatched, str(_unmatched))
+
+# ── ★★ 死信检测：队列里出现「未注册的任务名」= 永远没人消费 ──
+#
+# 2026-10-26（U28）实测踩到：把 `omr.recognize_batch` 改名为
+# `apps.omr.tasks.recognize_batch` 之后，`p1_generate` 里还躺着 3 条
+# **旧名**消息。worker 只认新名，这 3 条会永久留在队列里 —— 不报错、
+# 不告警、不重投，只是"扫码批次永远停在 PENDING"。
+#
+# ★ 教训：改任务名等于**让在途消息变成死信**。生产上改名要么先清队列、
+#   要么临时保留旧名做兼容（`@shared_task(name=旧名)` 的别名任务）。
+try:
+    import json as _json
+
+    import redis as _redis
+
+    _r = _redis.Redis.from_url(
+        os.environ["ZF_REDIS_URL"], socket_connect_timeout=0.5,
+        socket_timeout=0.5,
+    )
+    _known = set(celery_app.tasks)
+    _dead: dict[str, list[str]] = {}
+    for _q in ("p0_critical", "p1_generate", "p2_recompute"):
+        for _raw in _r.lrange(_q, 0, -1):
+            try:
+                _t = _json.loads(_raw).get("headers", {}).get("task")
+            except Exception:  # noqa: BLE001 —— 坏消息本身也算问题
+                _dead.setdefault(_q, []).append("<unparsable>")
+                continue
+            if _t and _t not in _known:
+                _dead.setdefault(_q, []).append(_t)
+    check("★★ 队列里没有「未注册任务名」的死信"
+          "（改任务名会让在途消息永远不被消费）",
+          not _dead, str({k: sorted(set(v)) for k, v in _dead.items()}))
+except Exception as _e:  # noqa: BLE001
+    check("★ 死信检测可执行（Redis 可连）", False, f"{type(_e).__name__}: {_e}")
 
 # ══════════════════════════════════════════════════════════════
 section("C3 · ★★★ 默认 `inline`（接线零风险的凭据）")
@@ -227,14 +294,19 @@ def _make_fixture():
 
     from django.utils import timezone as _tz
 
-    from apps.assignment.models import Assignment, AssignmentChannel
+    # ★ 2026-10-26（U28）修正：`Assignment.channel` 字段已于 2026-10-18 删除
+    #   （"所有作业统一『线上 + 线下』"，见 `apps/assignment/models.py` 注释）。
+    #   脚本里还在 import `AssignmentChannel` 并传 `channel=` → ImportError，
+    #   于是 `_make_fixture()` 每次抛异常返回 None，**C4/C5/C6 三组
+    #   一直在跳过分支里"通过"** —— 13 条断言全是假绿，只有 C1/C2/C3/C7 真跑。
+    #   这就是本套件自己的那份「跳过即通过」陷阱。
+    from apps.assignment.models import Assignment
 
     asg = Assignment.objects.for_org(1).filter(title=f"{TAG} 任务").first()
     if asg is None:
         asg = Assignment.objects.create(
             org_id=1, classroom=room, paper=pi.paper,
             title=f"{TAG} 任务",
-            channel=AssignmentChannel.ONLINE,
             start_at=_tz.now(),
             end_at=_tz.now() + timedelta(days=7),
         )
@@ -438,6 +510,57 @@ check("★★ 批改路径**不再**直接同步调 `recompute_after_score_chang
       "res = recompute_after_score_change(" not in src,
       "只剩 dispatch" if "res = recompute_after_score_change(" not in src
       else "★ 仍在直接调用")
+
+# ══════════════════════════════════════════════════════════════
+section("C8 · 健康检查三层语义（db 致命 / redis 降级 / celery 不致命）")
+# ══════════════════════════════════════════════════════════════
+#
+# ★ 这条组的价值在**分层**：`/health/` 是容器探针的入口。
+#   若把 worker 不在线判成不健康，部署初期容器会被反复杀掉，
+#   表现为「服务起不来」而业务其实可用（任务同步跑）。
+#   若把 redis 挂判成 503，则「Redis 重启 30 秒」直接演变成「整站不可用」。
+from apps.common import health as _H  # noqa: E402
+
+_orig = (_H.check_db, _H.check_redis, _H.check_celery_worker)
+try:
+    _H.check_db = lambda: {"ok": True, "detail": "stub"}
+    _H.check_redis = lambda: {"ok": True, "detail": "stub"}
+    _H.check_celery_worker = lambda: {"ok": True, "detail": "stub"}
+
+    _p, _code = _H.health_payload(deep=True)
+    check("全通 → 200 / ok", _code == 200 and _p["status"] == "ok",
+          f"{_code} {_p['status']}")
+    check("默认不探 celery（避免每次探针都广播）",
+          "celery" not in _H.health_payload()[0]["checks"])
+    check("payload 暴露 task_mode（排障第一句要问 inline/queued）",
+          _H.health_payload()[0].get("task_mode") in ("inline", "queued"),
+          str(_H.health_payload()[0].get("task_mode")))
+
+    _H.check_redis = lambda: {"ok": False, "detail": "down"}
+    _p, _code = _H.health_payload()
+    check("★★ redis 挂 → 200 / degraded（不是 503）",
+          _code == 200 and _p["status"] == "degraded",
+          f"{_code} {_p['status']}")
+
+    _H.check_db = lambda: {"ok": False, "detail": "down"}
+    _p, _code = _H.health_payload()
+    check("★★ db 挂 → 503 / error（唯一该让探针失败的层）",
+          _code == 503 and _p["status"] == "error",
+          f"{_code} {_p['status']}")
+
+    _H.check_db = lambda: {"ok": True, "detail": "stub"}
+    _H.check_redis = lambda: {"ok": True, "detail": "stub"}
+    _H.check_celery_worker = lambda: {"ok": False, "detail": "no worker"}
+    _p, _code = _H.health_payload(deep=True)
+    check("★★★ worker 不在线**不改变** status（否则容器会被反复杀掉）",
+          _code == 200 and _p["status"] == "ok"
+          and _p["checks"]["celery"]["ok"] is False,
+          f"{_code} {_p['status']}")
+finally:
+    _H.check_db, _H.check_redis, _H.check_celery_worker = _orig
+
+check("健康检查里 URL 口令要打码（该端点**不认证**）",
+      "s3cret" not in _H._mask_url("redis://u:s3cret@h:6379/0"))
 
 # ★ 清掉本套件造的 fixture（不污染库）
 _cleaned = _cleanup_fixture()

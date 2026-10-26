@@ -27,6 +27,8 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 from django.utils import timezone
 
+from apps.common.health import celery_wired, task_mode
+
 logger = logging.getLogger(__name__)
 
 #: 三个队列（00 架构文档：禁止新增队列）
@@ -231,9 +233,13 @@ def homepage(request: HttpRequest) -> HttpResponse:
         "counts": counts["items"],
         "breakdown": breakdown,
         "queues": QUEUES,
-        # ★ Celery 尚未接线（见 04 文档遗留）。这里如实标出，
-        #   不显示一个假的「运行中」。
-        "celery_wired": False,
+        # ★ U28：Celery 已接线，这里改成**真实探测**而不是写死的 False。
+        #   ★ 语义是「broker 可达」，不是「worker 在线」——
+        #     worker 在线数要广播探测（约 0.3s），不能挂到每次页面渲染上。
+        #     实时 worker 数看 `/health/?deep=1`。
+        #   ★ `task_mode` 一并暴露：排障第一句话是「你在 inline 还是 queued」。
+        "celery_wired": celery_wired(),
+        "task_mode": task_mode(),
         "api_prefix": "/api/v1/",
         "api_modules": [
             ("accounts", "登录 / 用户"), ("org", "机构 / 班级 / 名册"),

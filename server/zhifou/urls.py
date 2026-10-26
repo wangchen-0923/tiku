@@ -13,9 +13,21 @@ from django.urls import include, path
 from apps.common.views import homepage
 
 
-def health(_request):
-    """健康检查。★ 不做认证，供容器探针与负载均衡使用。"""
-    return JsonResponse({"status": "ok", "service": "zhifou-server", "version": "0.1.0"})
+def health(request):
+    """健康检查。★ 不做认证，供容器探针与负载均衡使用。
+
+    分层（见 `apps/common/health.py` 的三层语义）：
+      · 默认      —— 探 DB + Redis，**不探 worker**（worker 未起不算故障，
+                     否则部署初期容器会被反复杀掉）
+      · `?deep=1` —— 追探 Celery worker 在线数，供人工排障
+
+    返回码：db 挂 → 503；仅 redis 挂 → 200 + `status: degraded`。
+    """
+    from apps.common.health import health_payload
+
+    deep = str(request.GET.get("deep", "")).lower() in ("1", "true", "yes")
+    payload, code = health_payload(deep=deep)
+    return JsonResponse(payload, status=code)
 
 
 api_v1 = [
