@@ -55,6 +55,9 @@ api_v1 = [
     path("omr/", include("apps.omr.urls")),
     path("grading/", include("apps.grading.urls")),
     path("analytics/", include("apps.analytics.urls")),
+    # ★ 审计与合规（U29）：`/api/v1/audit/logs/` 三级可见范围不同。
+    #   `PiiMapping` **没有**路由，原因见 `apps/audit/urls.py` 顶部。
+    path("audit/", include("apps.audit.urls")),
     path("practice/", include("apps.practice.urls")),
     # ★ 学生端扫码入口：**不用 JWT**，用 URL 里的不可枚举 publish_token。
     #   路径极短（`/s/{token}/`）是为了扫码后少一次跳转——

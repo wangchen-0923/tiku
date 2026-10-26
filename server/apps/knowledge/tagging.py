@@ -399,10 +399,11 @@ class KnowledgeReviewService:
         link.reviewed_at = timezone.now()
         link.save(update_fields=["review_state", "reviewed_by",
                                  "reviewed_at"])
+        from apps.audit.models import AuditAction
         from apps.audit.services import audit_log
 
         audit_log.record(
-            "question_knowledge.review", link, operator_id, org_id=org_id,
+            AuditAction.QUESTION_KNOWLEDGE_REVIEW, link, operator_id, org_id=org_id,
             before=before, after={"review_state": state}, reason=reason,
         )
         return link

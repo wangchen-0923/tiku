@@ -57,6 +57,33 @@ class AuditAction(models.TextChoices):
     CREDIT_SETTINGS_CHANGE = "credit.settings_change", "修改积分规则"
     CREDIT_ADJUST = "credit.adjust", "积分调账"
     CREDIT_GRANT = "credit.grant", "发放月配额"
+    # ★ 双通道合并修复（U29）：重新选定生效作答。
+    #   它不是「改答案」，但它决定**哪条答案算数**——
+    #   一次手点可能让学生的某题从 0 分变成满分，
+    #   所以必须能回答「谁在什么时候把它改成了哪条」。
+    #   ★ 只在真的换了生效记录时才记，幂等重算不刷审计。
+    RESPONSE_MERGE = "response.merge", "重新选定生效作答"
+    # ★★ 2026-10-26（U29）补登记：这个码**早就在用，却不在 choices 里**。
+    #   `apps/response/services.py:165` 写的是字符串字面量
+    #   `"response.superseded"`，而 `AuditAction` 没有对应项。
+    #   后果是静默的：DB 列是 varchar 照收，但
+    #     ① `/audit/logs/actions/` 的下拉里没有它，管理员筛不出来；
+    #     ② 列表里显示的是英文码而不是「新记录被覆盖」；
+    #     ③ 任何按 choices 做的校验都会漏。
+    #   实测库中已有 1 条这样的记录（系统操作，operator 为空）。
+    RESPONSE_SUPERSEDED = "response.superseded", "新记录被既有记录覆盖"
+    # ★★ 2026-10-26（U29 顺带清理）：下面 4 个同样是「早就在写、却没登记」的码。
+    #   它们原先以裸字符串写在服务层，注释还特意说明「不注册，与既有做法一致」。
+    #   但那个「既有做法」本身就是缺陷：`/audit/logs/actions/` 的下拉里没有它们，
+    #   管理员按动作筛选**筛不出这些操作**，列表里也显示英文码。
+    #   现在由 `apps/audit/tests/test_services.py::test_no_unregistered_action_code_written_as_literal`
+    #   守着，源码里再写裸码就会红。
+    KNOWLEDGE_ENTRY_UPDATE = "knowledge_entry.update", "修改知识库条目"
+    QUESTION_KNOWLEDGE_REVIEW = (
+        "question_knowledge.review", "知识点关联审核",
+    )
+    PAPER_DELETE = "paper.delete", "删除试卷"
+    USER_TRANSFER = "user.transfer", "移交教学资产"
 
 
 class AuditLog(models.Model):

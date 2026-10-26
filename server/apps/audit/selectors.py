@@ -155,13 +155,74 @@ class AuditSelector:
 
     @staticmethod
     def action_summary(
-        org_id: int, *, days: int = 30
+        org_id: int | None, *, days: int = 30, operator_id: int | None = None
     ) -> list[dict[str, object]]:
-        """动作分布统计。★ 概览页与异常排查用。"""
+        """动作分布统计。★ 概览页与异常排查用。
+
+        ★ `org_id=None` 表示**跨校**（系统管理员的汇总口径），
+          此时不按机构过滤，`operator_id` 同样可省。
+          两者都不传时必须由调用方确保那是系统管理员——
+          本层不做权限判断（分层职责），但视图必须拦。
+        """
+        since = timezone.now() - timedelta(days=days)
+        qs = AuditLog.objects.filter(created_at__gte=since)
+        if org_id is not None:
+            qs = qs.filter(org_id=org_id)
+        if operator_id is not None:
+            qs = qs.filter(user_id=operator_id)
+        return list(
+            qs.values("action").annotate(n=Count("id")).order_by("-n")
+        )
+
+    @staticmethod
+    def search(
+        *,
+        org_id: int | None,
+        days: int = 30,
+        action: str = "",
+        target_type: str = "",
+        target_id: int | None = None,
+        operator_id: int | None = None,
+        request_id: str = "",
+    ) -> QuerySet[AuditLog]:
+        """审计日志检索（列表页的唯一入口）。
+
+        ★★ 作用域**不在这里判断**，只按传进来的条件过滤。
+          `operator_id` 是教师的收窄手段（只看自己），不是可选项——
+          视图必须为教师强制填上，否则教师能看到同事的全部操作。
+
+        ★ `select_related("user")`：序列化每行都要操作人姓名，
+          不预取就是一页 20 行 = 20 次 SQL。
+        """
+        qs = AuditLog.objects.all()
+        if org_id is not None:
+            qs = qs.filter(org_id=org_id)
+        if days:
+            qs = qs.filter(created_at__gte=timezone.now() - timedelta(days=days))
+        if action:
+            qs = qs.filter(action=action)
+        if target_type:
+            qs = qs.filter(target_type=target_type)
+        if target_id is not None:
+            qs = qs.filter(target_id=target_id)
+        if operator_id is not None:
+            qs = qs.filter(user_id=operator_id)
+        if request_id:
+            qs = qs.filter(request_id=request_id)
+        return qs.select_related("user").order_by("-created_at")
+
+    @staticmethod
+    def org_summary(days: int = 30) -> list[dict[str, object]]:
+        """跨校汇总：每个机构各有多少条审计记录。
+
+        ★ 这是系统管理员**唯一**能看到的形态——只有数字，
+          没有 `before`/`after`，没有操作人。见 05 文档 §1.4
+          「PLATFORM 只看跨校汇总」。
+        """
         since = timezone.now() - timedelta(days=days)
         return list(
-            AuditLog.objects.filter(org_id=org_id, created_at__gte=since)
-            .values("action")
+            AuditLog.objects.filter(created_at__gte=since)
+            .values("org_id", "org__name")
             .annotate(n=Count("id"))
             .order_by("-n")
         )

@@ -19,6 +19,7 @@ from typing import Any
 from django.db import transaction
 from django.db.models import F, Q
 
+from apps.audit.models import AuditAction
 from apps.audit.services import audit_log
 from apps.common.exceptions import ErrorCode, ValidationFailed, ZfError
 from apps.knowledge.models import (
@@ -1573,11 +1574,15 @@ class KnowledgeEntryService:
         audit_log.record_strict(
             # ★ 动作码沿用既有 `knowledge_entry.*` 命名（与
             #   `AuditAction.KNOWLEDGE_ENTRY_DELETE` 同族）。
-            #   注意：`AuditAction` 的 choices 里目前只有 `.delete`，
-            #   `.update` 作为常量**不注册**——与既有 `question.update`
-            #   / `paper.compose` / `asset.create` 的做法一致（那些
-            #   动作码也都只存在于服务层字面量里，不在 choices 内）。
-            "knowledge_entry.update",
+            #
+            # ★★ 2026-10-26（U29）更正：这里原来说「`.update` 不注册，
+            #   与既有 `question.update` / `paper.compose` / `asset.create`
+            #   的做法一致」—— 那个「既有做法」是缺陷，不是惯例：
+            #   未登记的码不会出现在 `/audit/logs/actions/` 的下拉里，
+            #   管理员按动作**筛不出这类操作**，列表里还显示英文码。
+            #   现已在 `AuditAction` 登记，并由
+            #   `apps/audit/tests/test_services.py` 的源码扫描守着。
+            AuditAction.KNOWLEDGE_ENTRY_UPDATE,
             entry,
             operator_id,
             org_id=org_id,

@@ -161,8 +161,14 @@ class ResponseService:
             new=new, previous=current,
         )
         if winner.id != new.id:
+            # ★ 用常量而不是字面量：这个动作码曾经写成裸字符串
+            #   `"response.superseded"`，而 `AuditAction` 里没有对应项 ——
+            #   DB 列是 varchar 照收，但 `/audit/logs/actions/` 筛不出来、
+            #   列表显示英文码，全程不报错。已补登记（audit/0009）。
+            from apps.audit.models import AuditAction
+
             audit_log.record(
-                "response.superseded", new, None,
+                AuditAction.RESPONSE_SUPERSEDED, new, None,
                 org_id=org_id,
                 after={"winner_id": winner.id, "winner_source": winner.source},
                 reason=reason or (
@@ -268,13 +274,28 @@ class ResponseService:
             ),
         )
         if winner.superseded_by_id is not None:
-            # 赢家必须重新成为生效记录；先把它指向一条非赢家记录，
-            # 避免置 NULL 时出现两条 NULL
-            other = next((r for r in rows if r.id != winner.id), None)
-            winner.superseded_by = other
-            winner.supersede_reason = "合并中：临时让位"
-            winner.save(update_fields=["superseded_by", "supersede_reason",
-                                       "updated_at"])
+            # ★★ 顺序不能反（2026-10-26 实测缺陷）：必须**先把当前生效的那条
+            #    改指赢家**，腾出「唯一 NULL」的位置，再把赢家的指针清空。
+            #
+            #    原实现是「把赢家临时指向另一条 → 立即置 NULL → 最后统一 update」。
+            #    在「赢家被压下去、另一条生效」的错序状态下（正是本方法要修的
+            #    场景），第二步会让赢家和当前生效那条**同时为 NULL**，
+            #    直接撞 `uq_response_active`（PG 的部分唯一索引**不可延迟**），
+            #    表现为 `merge` 接口 500 `COMMON.INTERNAL_ERROR` ——
+            #    也就是说「修错序的功能」恰好在需要它的那一刻坏掉。
+            current = next(
+                (r for r in rows
+                 if r.id != winner.id and r.superseded_by_id is None),
+                None,
+            )
+            if current is not None:
+                current.superseded_by = winner
+                current.supersede_reason = (
+                    f"被 {winner.source} 通道的同题作答覆盖"
+                )
+                current.save(update_fields=[
+                    "superseded_by", "supersede_reason", "updated_at",
+                ])
             winner.superseded_by = None
             winner.supersede_reason = ""
             winner.save(update_fields=["superseded_by", "supersede_reason",

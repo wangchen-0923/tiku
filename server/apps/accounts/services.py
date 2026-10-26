@@ -30,6 +30,7 @@ from django.utils import timezone
 
 from apps.accounts.authentication import issue_tokens
 from apps.accounts.models import Role, User, role_label
+from apps.audit.models import AuditAction
 from apps.audit.services import audit_log
 from apps.common.config import get_config
 from apps.common.exceptions import ErrorCode, ValidationFailed, ZfError
@@ -515,7 +516,7 @@ class UserService:
         ).update(head_teacher_id=dst.pk)
 
         audit_log.record_strict(
-            "user.transfer", dst, operator_id,
+            AuditAction.USER_TRANSFER, dst, operator_id,
             before={"from_username": src.username, "from_id": src.pk},
             after={"to_username": dst.username, "to_id": dst.pk,
                    "counts": counts},

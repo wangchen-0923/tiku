@@ -25,6 +25,7 @@ from django.db import transaction
 from django.db.models import Max
 from django.utils import timezone
 
+from apps.audit.models import AuditAction
 from apps.audit.services import audit_log
 from apps.common.exceptions import ErrorCode, ValidationFailed, ZfError
 from apps.paper.models import Paper, PaperEquivalence, PaperItem
@@ -1253,7 +1254,7 @@ class PaperService:
         PaperItem.objects.for_org(org_id).filter(paper_id=paper_id).delete()
         p.delete()
         audit_log.record(
-            "paper.delete", p, operator_id, org_id=org_id,
+            AuditAction.PAPER_DELETE, p, operator_id, org_id=org_id,
             before=before, after={"deleted": True},
             reason="删除草稿试卷",
         )
