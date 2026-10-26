@@ -8,14 +8,29 @@
         这类 403 的现象**指向错误的位置**（看着像权限 bug），
         实际是脚本没跟上新口径。
 
-  未修：G6 之前造 `NEEDS_REVIEW` 的手法已失效 ——
-        对同一 (学生, 卷面题) 再 `record(... answer="AB")` 后调
-        `auto_grade_item()`，得到的不是 NEEDS_REVIEW，
-        于是 `scores/?needs_review=true` 空列表、后续 `nr[0]` 越界。
-        这里涉及批改服务「重复作答如何处理」的语义，
-        不属于首页待办 / 知识树写操作的范围，留给 U30 统一对齐。
-        ★ 在此之前，**以 `verify_grading_quality_loop.py`（103 项）
-          作为批改链路的主回归**，它是绿的。
+  ★ 2026-10-26（U32 复查后）G5 尾 / G6 已修，83 项全通过：
+
+    根因**不是**「多涂识别坏了」。「多涂」的唯一载体是
+    `ScanCard.uncertain_items`（`reason=REASON_MULTI`），由
+    `auto_grade_assignment` 在逐题循环**之前**统一前置成 0 分 +
+    NEEDS_REVIEW。旧写法 `answer_normalized="AB"` + 直接调
+    `auto_grade_item()` 走的是另一条路 —— 那条路按设计不判识别存疑，
+    而且从答案串猜多涂本身就是错的（选项乱序后「恰好选了 A 和 B」
+    与「同一题涂了两个框」在答案串上完全一样，「涂了几个框」是图像信息）。
+
+    现改为造真 `ScanCard`（SheetStyle → SheetTemplate → Asset →
+    ScanBatch → ScanCard）再走整班批改接口。两处必须注意：
+
+      · **另起一个学生**：此时原学生的 3 道客观题已被 `confirm-class`
+        置为 TEACHER_CONFIRMED（全在 `locked_items`，人工定稿不参与重批），
+        第 4 题是简答。同一个学生再造多涂，整班批改一道都不会进存疑分支。
+      · **`uncertain_items[].seq` 是卷面题号（1 起）**，要用该生的
+        `ordering_for(...).sheet_seq_of(...)` 反查。写死成 1 在逐生乱序下
+        会指到别人的题上。
+
+    顺带修了 cleanup 的三处漏项：`ScanCard`/`ScanBatch`（`sheet_template`
+    与 `operator` 是 PROTECT，不清就删不掉模板和用户）、`task_run`
+    （`biz_type`/`biz_id` 是裸字段，删作业不级联 → 每次留 2 条孤儿）。
 """
 
 from __future__ import annotations
@@ -54,6 +69,9 @@ from apps.assignment.models import Assignment, AssignmentStudent  # noqa: E402
 from apps.assignment.services import AssignmentService  # noqa: E402
 from apps.grading.models import ScoreResult  # noqa: E402
 from apps.knowledge.models import Course, KnowledgeNode  # noqa: E402
+from apps.media.models import Asset  # noqa: E402
+from apps.omr.models import ScanBatch, ScanCard  # noqa: E402
+from apps.omr.validators import REASON_MULTI  # noqa: E402
 from apps.org.models import Classroom, ClassroomStudent, Org  # noqa: E402
 from apps.org.services import ClassroomService, RosterService  # noqa: E402
 from apps.paper.models import Paper, PaperItem  # noqa: E402
@@ -110,6 +128,33 @@ def _purge_error_stats(org_id: int) -> None:
 
 def cleanup(org_id: int) -> None:
     from django.db import connection
+
+    # ★★ 识别产物必须**最先**清，且**按本脚本造的作业限定**。
+    #
+    #   两个 PROTECT 会卡住后面的清理：
+    #     `scan_card.sheet_template` → 模板删不掉
+    #     `scan_batch.operator`      → `test_ga_*` 用户删不掉
+    #   残留的表现是「下次运行撞 user_username_key」，看起来像脚本写错。
+    #
+    #   ★ 不能按 org 全删：本脚本跑在**既有**测试学校上，
+    #     那所学校可能有真实扫描卡。只删自己造的作业下的。
+    _mine = set(
+        Assignment._base_manager.filter(
+            org_id=org_id, title__startswith="TESTAPI"
+        ).values_list("id", flat=True)
+    )
+    if _mine:
+        ScanCard._base_manager.filter(assignment_id__in=_mine).delete()
+        ScanBatch._base_manager.filter(assignment_id__in=_mine).delete()
+        # ★ `task_run.biz_type`/`biz_id` 是**裸字段**（没有 FK 到 assignment），
+        #   删作业不会级联 → 每跑一次留 2 条孤儿任务行，`GET /tasks/` 里
+        #   能看到「已完成的批改」，而对应作业早已不存在。
+        #   而 `task_run.org` 是 PROTECT，将来真删机构时又会卡住。
+        from apps.common.models import TaskRun
+
+        TaskRun._base_manager.filter(
+            org_id=org_id, biz_type="assignment", biz_id__in=_mine
+        ).delete()
 
     for a in Assignment._base_manager.filter(org_id=org_id,
                                              title__startswith="TESTAPI"):
@@ -362,29 +407,78 @@ def _run(org_id: int) -> int:
 
     # 造一条 NEEDS_REVIEW（多涂）
     #
-    # ★★ 2026-10-26（U32 复查）**这两条断言（G5 尾 + G6）的造数手法已确定过期**，
-    #    根因不是「多涂识别坏了」：
+    # ★★ 「多涂」的**唯一载体**是 `ScanCard.uncertain_items`
+    #    （`reason=REASON_MULTI`），由 `auto_grade_assignment` 在逐题循环
+    #    **之前**统一前置成「0 分 + NEEDS_REVIEW」。
     #
-    #      「多涂」在本系统里的载体是 `ScanCard.uncertain_items`
-    #      （`omr.validators.REASON_MULTI`），由 `auto_grade_assignment`
-    #      在进入逐题循环前统一前置。而下面这里造的是
-    #      `answer_normalized="AB"` + 直接调 `auto_grade_item()` ——
+    #    ✗ 旧写法是 `answer_normalized="AB"` + 直接调 `auto_grade_item()`。
     #      那条路**按设计**不产生 NEEDS_REVIEW（见该方法 docstring
-    #      里「识别存疑不在这里判」）。
+    #      「识别存疑不在这里判」）—— 而且它本身就是错的：选项乱序后
+    #      「恰好选了 A 和 B」与「同一题涂了两个框」在答案串上长得一模一样，
+    #      从答案串猜多涂只能靠猜。「涂了几个框」是**图像**里的信息。
     #
-    #    所以修法只有一条：造一张真 ScanCard（需 ScanBatch / SheetTemplate /
-    #    Asset 三张表）再走整班批改。在补上之前，这两条保持红 ——
-    #    ★ 把断言改成「单题批改不产生待确认」会让它**永远绿**，
-    #      而那正是这个缺陷的保护色。
-    ResponseService.record(
-        org_id=org_id, assignment_id=a.id, student_id=stu.id,
-        paper_item_id=items[0].id, source="SCAN_UPLOAD",
-        answer_normalized="AB")
-    from apps.grading.services import GradingService
+    # ★ 为什么另起一个学生：此刻 stu 的 3 道客观题已被 `confirm-class`
+    #   置成 TEACHER_CONFIRMED，全在 `locked_items` 里（人工定稿不参与重批）；
+    #   第 4 题是简答 → `skipped_subjective`。同一个学生再造多涂，
+    #   整班批改**一道都不会进存疑分支**，断言会「因无关原因」红。
+    stu2 = User.objects.create(username="test_ga_s2", real_name="李四",
+                               org_id=org_id, role="STUDENT")
+    RosterService.import_roster(
+        org_id=org_id, classroom_id=room.id,
+        rows=[{"student_no": "20266002", "name": "李四"}])
+    cs2 = ClassroomStudent.objects.for_org(org_id).get(
+        classroom=room, student_no="20266002")
+    cs2.student = stu2
+    cs2.save(update_fields=["student", "updated_at"])
 
-    GradingService.auto_grade_item(
-        org_id=org_id, assignment_id=a.id, student_id=stu.id,
-        paper_item_id=items[0].id)
+    # ★ 再发布一次：`publish` 幂等（已有映射原样保留），只给新进班的
+    #   学生补 `assignment_student` 行（含逐生乱序）。不补的话
+    #   `ordering_for` 取不到卷面顺序 → 题号映射不了 → 存疑标记被
+    #   **静默丢弃**（`omr_uncertain_by_item` 里那条 warning），
+    #   表现出来就是「卡造了、批改了、队列还是空」。
+    AssignmentService.publish(org_id=org_id, assignment_id=a.id)
+
+    # 扫描来源的作答：多涂题**必须保留作答记录**，
+    # 老师要看到「他实际涂了 A 和 D」，而不是一个空白作答。
+    ResponseService.record(
+        org_id=org_id, assignment_id=a.id, student_id=stu2.id,
+        paper_item_id=items[0].id, source="SCAN_UPLOAD",
+        answer_normalized="AD")
+    AssignmentService.mark_submitted(
+        org_id=org_id, assignment_id=a.id, student_id=stu2.id)
+
+    # 识别产物：样式 → 模板 → 资产 → 批次 → 卡
+    style = SheetStyle.objects.create(org_id=org_id, name="TESTAPI 卡样式")
+    tpl = SheetTemplate.objects.create(
+        org_id=org_id, style=style, name="TESTAPI 答题卡",
+        page_count=1, question_count=len(items),
+        total_score=sum((it.score for it in items), Decimal("0")),
+        status="ACTIVE", created_by_id=teacher.id)
+    raw = Asset.objects.create(
+        org_id=org_id, kind="SCAN_RAW",
+        oss_key="sheets/testapi/page1.png", mime="image/png",
+        byte_size=1024)
+    batch = ScanBatch.objects.create(
+        org_id=org_id, assignment=a, sheet_template=tpl,
+        capture_channel="UPLOAD", operator=teacher)
+    # ★ `seq` 是**卷面题号（1 起）**，不是 `paper_item_id`。
+    #   写死成 1 在逐生乱序下会指到**别人的**题上（甚至越界）。
+    ordering = ResponseService.ordering_for(
+        org_id=org_id, assignment_id=a.id, student_id=stu2.id)
+    _seq = ordering.sheet_seq_of(items[0].id)
+    ScanCard.objects.create(
+        org_id=org_id, scan_batch=batch, assignment=a,
+        sheet_template=tpl, raw_asset=raw, page_no=1,
+        student=stu2, recognized_student_no="20266002",
+        capture_channel="UPLOAD",
+        uncertain_items=[{"seq": _seq, "reason": REASON_MULTI}])
+
+    # ★ 必须走**整班批改接口**（存疑前置发生在 `auto_grade_assignment`
+    #   进入逐题循环之前；`auto_grade_item` 里没有这段）。
+    r = c.post(f"{G}/assignments/{a.id}/auto-grade/",
+               data=json.dumps({}), content_type="application/json")
+    check("多涂造数后整班批改 200", r.status_code == 200,
+          f"{r.status_code} {json.dumps(_body(r), ensure_ascii=False)[:160]}")
     r = c.get(f"{G}/assignments/{a.id}/review-queue/")
     check("★ 多涂后队列非空", _body(r)["data"]["count"] == 1,
           str(_body(r)["data"]["count"]))
